@@ -65,19 +65,19 @@ const regionData = {
 // 시/도 선택 시
 document.getElementById('sido').addEventListener('change', function() {
     const sido = this.value;
-    const sigunguSelect = document.getElementById('sigungu');
+    const gugunSelect = document.getElementById('gugun');
     
-    sigunguSelect.innerHTML = '<option value="">시/구/군 선택</option>';
-    sigunguSelect.disabled = true;
+    gugunSelect.innerHTML = '<option value="">시/구/군 선택</option>';
+    gugunSelect.disabled = true;
     
     if (sido && regionData[sido]) {
-        Object.keys(regionData[sido]).forEach(sigungu => {
+        Object.keys(regionData[sido]).forEach(gugun => {
             const option = document.createElement('option');
-            option.value = sigungu;
-            option.textContent = sigungu;
-            sigunguSelect.appendChild(option);
+            option.value = gugun;
+            option.textContent = gugun;
+            gugunSelect.appendChild(option);
         });
-        sigunguSelect.disabled = false;
+        gugunSelect.disabled = false;
     }
 });
 
@@ -95,14 +95,14 @@ document.querySelectorAll('.blog-option').forEach(option => {
 // 분석 시작
 async function startAnalysis() {
     const sido = document.getElementById('sido').value;
-    const sigungu = document.getElementById('sigungu').value;
+    const gugun = document.getElementById('gugun').value;
     
-    if (!sido || !sigungu) {
+    if (!sido || !gugun) {
         alert('지역을 선택해주세요!');
         return;
     }
     
-    selectedRegion = sigungu;
+    selectedRegion = gugun;
     
     // UI 상태 변경
     document.querySelector('.analyze-btn').disabled = true;
@@ -110,7 +110,7 @@ async function startAnalysis() {
     document.querySelector('.results').style.display = 'none';
     
     try {
-        analysisResults = await performAnalysis(sigungu);
+        analysisResults = await performAnalysis(gugun);
         displayResults();
     } catch (error) {
         console.error('분석 오류:', error);
