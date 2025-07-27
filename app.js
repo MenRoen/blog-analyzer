@@ -144,71 +144,82 @@ async function performAnalysis(region) {
     
     updateProgress('아파트 데이터 수집 중...');
     
-    // 2. 아파트 데이터 수집
-    const apartmentData = await getApartments(region);
-    results.apartments = apartmentData.apartments || [];
-    
-    // 3. 동별 데이터 정리
-    updateProgress('동별 데이터 분석 중...');
-    
-    for (const apt of results.apartments) {
-        const dong = apt.dong || '기타';
+    try {
+        // 2. 아파트 데이터 수집
+        const apartmentData = await getApartments(region);
+        results.apartments = apartmentData.apartments || [];
         
-        if (!results.dongData[dong]) {
-            results.dongData[dong] = {
-                name: dong,
-                count: 0,
-                apartments: [],
-                ranking: null,
-                myPosts: 0
+        if (results.apartments.length === 0) {
+            throw new Error('아파트 데이터가 없습니다.');
+        }
+        
+        // 3. 동별 데이터 정리
+        updateProgress('동별 데이터 분석 중...');
+        
+        for (const apt of results.apartments) {
+            const dong = apt.dong || '기타';
+            
+            if (!results.dongData[dong]) {
+                results.dongData[dong] = {
+                    name: dong,
+                    count: 0,
+                    apartments: [],
+                    ranking: null,
+                    myPosts: 0
+                };
+            }
+            
+            results.dongData[dong].count++;
+            results.dongData[dong].apartments.push(apt);
+            
+            // 입주 예정/최근 입주 분류
+            if (apt.moveInDays && apt.moveInDays >= -60 && apt.moveInDays <= 0) {
+                results.moveInSoon.push(apt);
+            } else if (apt.moveInDays && apt.moveInDays > 0 && apt.moveInDays <= 90) {
+                results.recentlyMoved.push(apt);
+            }
+        }
+        
+        // 4. 동별 순위 확인
+        updateProgress('동별 순위 확인 중...');
+        
+        for (const dong of Object.keys(results.dongData)) {
+            const dongRanking = await checkRanking(`${dong} 커튼`, selectedBlog);
+            const dongBlindRanking = await checkRanking(`${dong} 블라인드`, selectedBlog);
+            const myPosts = await countMyPosts(dong, selectedBlog);
+            
+            results.dongData[dong].ranking = {
+                curtain: dongRanking,
+                blind: dongBlindRanking
             };
+            results.dongData[dong].myPosts = myPosts;
+            
+            await delay(300);
         }
         
-        results.dongData[dong].count++;
-        results.dongData[dong].apartments.push(apt);
+        // 5. 각 아파트별 순위 확인
+        updateProgress('아파트별 순위 확인 중...');
         
-        // 입주 예정/최근 입주 분류
-        if (apt.moveInDays && apt.moveInDays >= -60 && apt.moveInDays <= 0) {
-            results.moveInSoon.push(apt);
-        } else if (apt.moveInDays && apt.moveInDays > 0 && apt.moveInDays <= 90) {
-            results.recentlyMoved.push(apt);
+        for (let i = 0; i < results.apartments.length; i++) {
+            const apt = results.apartments[i];
+            updateProgress(`아파트 분석 중... (${i + 1}/${results.apartments.length})`);
+            
+            apt.ranking = {
+                curtain: await checkRanking(`${apt.name} 커튼`, selectedBlog),
+                blind: await checkRanking(`${apt.name} 블라인드`, selectedBlog)
+            };
+            apt.myPosts = await countMyPosts(apt.name, selectedBlog);
+            
+            await delay(300);
         }
+        
+        return results;
+        
+    } catch (error) {
+        console.error('분석 중 오류:', error);
+        alert(error.message || '분석 중 오류가 발생했습니다.');
+        throw error;
     }
-    
-    // 4. 동별 순위 확인
-    updateProgress('동별 순위 확인 중...');
-    
-    for (const dong of Object.keys(results.dongData)) {
-        const dongRanking = await checkRanking(`${dong} 커튼`, selectedBlog);
-        const dongBlindRanking = await checkRanking(`${dong} 블라인드`, selectedBlog);
-        const myPosts = await countMyPosts(dong, selectedBlog);
-        
-        results.dongData[dong].ranking = {
-            curtain: dongRanking,
-            blind: dongBlindRanking
-        };
-        results.dongData[dong].myPosts = myPosts;
-        
-        await delay(300);
-    }
-    
-    // 5. 각 아파트별 순위 확인
-    updateProgress('아파트별 순위 확인 중...');
-    
-    for (let i = 0; i < results.apartments.length; i++) {
-        const apt = results.apartments[i];
-        updateProgress(`아파트 분석 중... (${i + 1}/${results.apartments.length})`);
-        
-        apt.ranking = {
-            curtain: await checkRanking(`${apt.name} 커튼`, selectedBlog),
-            blind: await checkRanking(`${apt.name} 블라인드`, selectedBlog)
-        };
-        apt.myPosts = await countMyPosts(apt.name, selectedBlog);
-        
-        await delay(300);
-    }
-    
-    return results;
 }
 
 // 아파트 데이터 가져오기
@@ -220,20 +231,21 @@ async function getApartments(region) {
             body: JSON.stringify({ region })
         });
         
-        if (!response.ok) throw new Error('API 오류');
+        if (!response.ok) {
+            throw new Error(`API 오류: ${response.status}`);
+        }
         
         const data = await response.json();
         
-        // 데이터가 없으면 샘플 데이터 사용
+        // 데이터가 없으면 에러 표시
         if (!data.apartments || data.apartments.length === 0) {
-            return generateSampleData(region);
+            throw new Error('해당 지역의 아파트 정보를 찾을 수 없습니다.');
         }
         
         return data;
     } catch (error) {
         console.error('아파트 데이터 수집 오류:', error);
-        // 샘플 데이터 반환
-        return generateSampleData(region);
+        throw error; // 에러를 그대로 전달
     }
 }
 
@@ -252,7 +264,7 @@ async function checkRanking(keyword, blogId) {
         return data.rank;
     } catch (error) {
         console.error('순위 확인 오류:', error);
-        return Math.random() > 0.5 ? Math.floor(Math.random() * 100) + 1 : '100위 밖';
+        return '측정불가';
     }
 }
 
@@ -268,10 +280,10 @@ async function countMyPosts(keyword, blogId) {
         if (!response.ok) throw new Error('API 오류');
         
         const data = await response.json();
-        return Math.min(data.total || 0, 10); // 최대 10개로 제한
+        return Math.min(data.total || 0, 10);
     } catch (error) {
         console.error('포스팅 수 확인 오류:', error);
-        return Math.floor(Math.random() * 5);
+        return 0;
     }
 }
 
@@ -443,64 +455,4 @@ function exportToCSV() {
     link.setAttribute('href', url);
     link.setAttribute('download', `블로그분석_${selectedRegion}_${new Date().getTime()}.csv`);
     link.click();
-}
-
-// 샘플 데이터 생성 (API 실패 시)
-function generateSampleData(region) {
-    // 지역별 실제 동 데이터
-    const dongsByRegion = {
-        '성동구': ['성수동', '금호동', '옥수동', '왕십리동', '용답동', '마장동', '사근동', '행당동', '응봉동', '송정동', '하왕십리동'],
-        '광진구': ['자양동', '구의동', '광장동', '중곡동', '화양동', '능동', '군자동'],
-        '강남구': ['압구정동', '청담동', '삼성동', '대치동', '역삼동', '도곡동', '개포동', '일원동', '수서동', '세곡동', '논현동', '신사동'],
-        '서초구': ['서초동', '잠원동', '반포동', '방배동', '양재동', '내곡동', '우면동', '신원동', '염곡동'],
-        '송파구': ['잠실동', '신천동', '송파동', '석촌동', '삼전동', '가락동', '문정동', '장지동', '위례동', '거여동', '마천동', '방이동', '오금동', '풍납동'],
-        '수원시 영통구': ['영통동', '매탄동', '원천동', '광교동', '하동', '이의동', '신동', '망포동'],
-        '수원시 장안구': ['파장동', '조원동', '정자동', '천천동', '영화동', '송죽동', '율천동', '연무동'],
-        '수원시 권선구': ['권선동', '세류동', '평동', '서둔동', '구운동', '금곡동', '호매실동', '입북동'],
-        '수원시 팔달구': ['매교동', '매산동', '고등동', '화서동', '지동', '우만동', '인계동', '교동'],
-        '성남시 분당구': ['구미동', '금곡동', '분당동', '수내동', '서현동', '이매동', '야탑동', '정자동', '판교동', '삼평동', '백현동', '운중동'],
-        '성남시 수정구': ['신흥동', '태평동', '수진동', '단대동', '산성동', '양지동', '복정동', '신촌동', '고등동', '시흥동'],
-        '성남시 중원구': ['성남동', '중앙동', '금광동', '은행동', '상대원동', '하대원동', '도촌동', '갈현동', '여수동'],
-        '용인시 수지구': ['풍덕천동', '신봉동', '죽전동', '동천동', '고기동', '상현동', '성복동'],
-        '용인시 기흥구': ['구갈동', '신갈동', '영덕동', '하갈동', '보라동', '상하동', '지곡동', '공세동', '고매동', '농서동', '서천동', '언남동', '청덕동', '마북동', '동백동', '중동', '상갈동', '보정동'],
-        '용인시 처인구': ['김량장동', '역북동', '삼가동', '유방동', '마평동', '운학동', '호동', '해곡동', '포곡읍', '모현읍', '남사읍', '이동읍', '원삼면', '백암면', '양지면'],
-        '고양시 일산동구': ['장항동', '백석동', '마두동', '정발산동', '풍산동', '식사동', '중산동', '풍동', '산황동', '설문동'],
-        '고양시 일산서구': ['일산동', '주엽동', '대화동', '탄현동', '가좌동', '덕이동', '구산동', '법곳동'],
-        '고양시 덕양구': ['화정동', '행신동', '능곡동', '토당동', '삼송동', '창릉동', '고양동', '관산동', '화전동', '성사동', '원신동', '도내동', '신도동'],
-        '부산 해운대구': ['우동', '중동', '좌동', '송정동', '재송동', '반여동', '반송동', '석대동'],
-        '인천 연수구': ['연수동', '청학동', '동춘동', '선학동', '옥련동', '송도동'],
-        '대전 유성구': ['노은동', '지족동', '전민동', '문지동', '원신흥동', '상대동', '복용동', '봉명동', '구암동', '덕명동', '도룡동', '장대동', '궁동', '어은동', '신성동']
-    };
-    
-    // 전체 시/구까지만 입력된 경우 처리
-    const simplifiedRegion = region.replace(/시 .*구$/, '시').replace(/구$/, '구');
-    const dongs = dongsByRegion[region] || dongsByRegion[simplifiedRegion] || 
-                  ['중앙동', '역전동', '신도시', '구도심', '동부', '서부', '남부', '북부'];
-    
-    const brands = ['래미안', '자이', '아이파크', 'e편한세상', '푸르지오', '롯데캐슬', '힐스테이트', '더샵', 'SK뷰', '위브', '포레나', '리버파크', '센트럴', '파크뷰'];
-    
-    const apartments = [];
-    
-    dongs.forEach(dong => {
-        const count = Math.floor(Math.random() * 8) + 5; // 동당 5~12개 아파트
-        for (let i = 0; i < count; i++) {
-            const brand = brands[Math.floor(Math.random() * brands.length)];
-            const moveInDays = Math.random() > 0.85 ? -Math.floor(Math.random() * 60) : 
-                            Math.random() > 0.9 ? Math.floor(Math.random() * 90) : null;
-            
-            apartments.push({
-                name: `${dong} ${brand}`,
-                dong: dong,
-                maxPrice: Math.floor(Math.random() * 50 + 10),
-                avgPrice: Math.floor(Math.random() * 45 + 8),
-                totalHouseholds: Math.floor(Math.random() * 1200 + 200),
-                recentTrades: Math.floor(Math.random() * 15),
-                searchVolume: Math.floor(Math.random() * 30000 + 5000),
-                moveInDays: moveInDays,
-                moveInStatus: moveInDays ? (moveInDays < 0 ? `D${moveInDays}` : `입주 ${Math.floor(moveInDays / 30)}개월`) : null
-            });
-        }
-    });
-    
-    return { apartments };
 }
