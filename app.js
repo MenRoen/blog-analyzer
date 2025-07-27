@@ -1,4 +1,15 @@
-// 전역 변수
+// 아파트 검색 (네이버 지도)
+function searchApartment(element) {
+    const aptName = element.getAttribute('data-name');
+    const dong = element.getAttribute('data-dong');
+    const region = selectedRegion;
+    
+    // 네이버 지도 부동산 검색
+    const searchQuery = encodeURIComponent(`${region} ${dong} ${aptName}`);
+    const naverMapUrl = `https://map.naver.com/v5/search/${searchQuery}`;
+    
+    window.open(naverMapUrl, '_blank');
+}// 전역 변수
 let selectedBlog = 'mendeco';
 let selectedRegion = '';
 let analysisResults = null;
@@ -407,8 +418,8 @@ function sortApartments(type) {
             </div>
             <div class="apartment-info">
                 <span class="info-badge">💰 ${apt.maxPrice || apt.avgPrice || 0}억</span>
-                <span class="info-badge">🏠 ${apt.totalHouseholds || '?'}세대</span>
-                <span class="info-badge">📈 거래: ${apt.recentTrades || 0}건</span>
+                <span class="info-badge">📈 최근거래: ${apt.recentTrades || 0}건</span>
+                <span class="info-badge">📅 전체거래: ${apt.totalTrades || 0}건</span>
             </div>
             <div class="blog-ranking">
                 📊 ${apt.name} 커튼: ${formatRank(apt.ranking?.curtain)} | 
@@ -443,11 +454,11 @@ function exportToCSV() {
     if (!analysisResults) return;
     
     let csv = '\ufeff'; // BOM for UTF-8
-    csv += '동,아파트명,최고가(억),세대수,최근거래,전체거래,커튼순위,블라인드순위,내포스팅수\n';
+    csv += '동,아파트명,최고가(억),최근거래,전체거래,커튼순위,블라인드순위,내포스팅수\n';
     
     Object.values(analysisResults.dongData).forEach(dong => {
         dong.apartments.forEach(apt => {
-            csv += `"${dong.name}","${apt.name}",${apt.maxPrice || 0},${apt.totalHouseholds || 0},${apt.recentTrades || 0},${apt.totalTrades || 0},"${formatRank(apt.ranking?.curtain)}","${formatRank(apt.ranking?.blind)}",${apt.myPosts || 0}\n`;
+            csv += `"${dong.name}","${apt.name}",${apt.maxPrice || 0},${apt.recentTrades || 0},${apt.totalTrades || 0},"${formatRank(apt.ranking?.curtain)}","${formatRank(apt.ranking?.blind)}",${apt.myPosts || 0}\n`;
         });
     });
     
@@ -459,11 +470,15 @@ function exportToCSV() {
     link.click();
 }
 
-// 아파트 검색 (네이버 부동산)
+// 아파트 검색 (네이버 지도)
 function searchApartment(element) {
     const aptName = element.getAttribute('data-name');
     const dong = element.getAttribute('data-dong');
-    const searchQuery = encodeURIComponent(`${dong} ${aptName}`);
-    const naverUrl = `https://m.land.naver.com/search/result/${searchQuery}`;
-    window.open(naverUrl, '_blank');
+    const region = selectedRegion;
+    
+    // 네이버 지도 부동산 검색
+    const searchQuery = encodeURIComponent(`${region} ${dong} ${aptName}`);
+    const naverMapUrl = `https://map.naver.com/v5/search/${searchQuery}`;
+    
+    window.open(naverMapUrl, '_blank');
 }
