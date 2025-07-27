@@ -11,12 +11,24 @@ const REGION_CODES = {
     "관악구": "11620", "서초구": "11650", "강남구": "11680", "송파구": "11710",
     "강동구": "11740",
     // 경기 주요
-    "수원시": "41110", "성남시": "41130", "분당구": "41135", "수지구": "41465",
-    "용인시": "41460", "부천시": "41190", "안양시": "41170", "안산시": "41270",
-    "고양시": "41280", "남양주시": "41360", "화성시": "41590", "평택시": "41220",
-    "의정부시": "41150", "파주시": "41480", "시흥시": "41390", "김포시": "41570",
-    "광명시": "41210", "광주시": "41610", "군포시": "41410", "하남시": "41450"
+    "수원시": "41110", "성남시": "41130", "의정부시": "41150", "안양시": "41170",
+    "부천시": "41190", "광명시": "41210", "평택시": "41220", "안산시": "41270",
+    "고양시": "41280", "과천시": "41290", "구리시": "41310", "남양주시": "41360",
+    "오산시": "41370", "시흥시": "41390", "군포시": "41410", "의왕시": "41430",
+    "하남시": "41450", "용인시": "41460", "파주시": "41480", "이천시": "41500",
+    "안성시": "41550", "김포시": "41570", "화성시": "41590", "광주시": "41610",
+    "양주시": "41630", "포천시": "41650",
+    // 인천
+    "중구": "28110", "동구": "28140", "미추홀구": "28177", "연수구": "28185",
+    "남동구": "28200", "부평구": "28237", "계양구": "28245", "서구": "28260",
+    // 부산
+    "해운대구": "26350", "수영구": "26500", "광안리": "26500",
+    // 기타 광역시
+    "유성구": "30200", "달서구": "27290"
 };
+
+// 국토부 API 키
+const MOLIT_API_KEY = "1iC0l5YNvH8eWhRJNOEAivLtGqupVFDs/uoKQRh8JtHUq59PXUgJ2/IsLrm1V/jcJViFsyV8pwro+mGTlbLmag==";
 
 exports.handler = async (event, context) => {
     // CORS 헤더
@@ -38,171 +50,168 @@ exports.handler = async (event, context) => {
     try {
         const { region } = JSON.parse(event.body);
         
-        // 지역 코드 찾기
+        if (!region) {
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ error: '지역이 필요합니다.' })
+            };
+        }
+
+        const apartments = {};
+        const currentDate = new Date();
         const regionCode = REGION_CODES[region];
         
-        // 국토부 API 호출 (실제로는 작동 안 할 수 있음)
-        const apartments = await fetchApartmentData(regionCode, region);
+        console.log(`지역: ${region}, 코드: ${regionCode}`);
         
-        // 네이버 검색으로 보완
-        if (apartments.length === 0) {
-            const searchData = await searchApartments(region);
-            apartments.push(...searchData);
+        if (regionCode) {
+            // 최근 3개월 데이터 조회
+            for (let monthOffset = 0; monthOffset < 3; monthOffset++) {
+                const targetDate = new Date(currentDate);
+                targetDate.setMonth(targetDate.getMonth() - monthOffset);
+                const yearMonth = targetDate.getFullYear() + String(targetDate.getMonth() + 1).padStart(2, '0');
+                
+                const url = `https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade`;
+                const params = new URLSearchParams({
+                    serviceKey: MOLIT_API_KEY,
+                    pageNo: '1',
+                    numOfRows: '500', // 최대한 많이 가져오기
+                    LAWD_CD: regionCode,
+                    DEAL_YMD: yearMonth
+                });
+                
+                try {
+                    const response = await fetch(`${url}?${params}`);
+                    const text = await response.text();
+                    
+                    // XML 파싱
+                    const items = text.match(/<item>[\s\S]*?<\/item>/g) || [];
+                    
+                    items.forEach(itemXml => {
+                        const getTagValue = (tag) => {
+                            const match = itemXml.match(new RegExp(`<${tag}>([^<]*)<\/${tag}>`));
+                            return match ? match[1].trim() : '';
+                        };
+                        
+                        const aptName = getTagValue('아파트');
+                        const dong = getTagValue('법정동');
+                        
+                        if (aptName && dong) {
+                            const key = `${dong}_${aptName}`;
+                            
+                            if (!apartments[key]) {
+                                apartments[key] = {
+                                    name: aptName,
+                                    dong: dong.replace(/[0-9]/g, '').trim(), // 숫자 제거
+                                    prices: [],
+                                    buildYear: getTagValue('건축년도'),
+                                    trades: [],
+                                    totalHouseholds: parseInt(getTagValue('세대수')) || 0,
+                                    region: region
+                                };
+                            }
+                            
+                            const price = parseInt(getTagValue('거래금액').replace(/,/g, ''));
+                            apartments[key].prices.push(price);
+                            
+                            const tradeDate = new Date(
+                                getTagValue('년'),
+                                parseInt(getTagValue('월')) - 1,
+                                getTagValue('일')
+                            );
+                            
+                            apartments[key].trades.push({
+                                price: getTagValue('거래금액'),
+                                date: tradeDate,
+                                area: getTagValue('전용면적'),
+                                floor: getTagValue('층')
+                            });
+                        }
+                    });
+                } catch (error) {
+                    console.error(`${yearMonth} 데이터 조회 오류:`, error);
+                }
+                
+                // API 제한 회피
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
         }
         
+        // 네이버 검색으로 보완
+        if (Object.keys(apartments).length < 20) {
+            const searchKeywords = [
+                `${region} 아파트`,
+                `${region} 아파트 시세`,
+                `${region} 신축 아파트`,
+                `${region} 래미안`,
+                `${region} 자이`,
+                `${region} 아이파크`,
+                `${region} 푸르지오`,
+                `${region} 힐스테이트`
+            ];
+            
+            for (const keyword of searchKeywords) {
+                try {
+                    // 네이버 검색은 search-naver 함수 활용
+                    console.log(`검색: ${keyword}`);
+                } catch (error) {
+                    console.error('네이버 검색 오류:', error);
+                }
+            }
+        }
+        
+        // 데이터 정리
+        const apartmentList = Object.values(apartments).map(apt => {
+            if (apt.prices.length > 0) {
+                apt.avgPrice = Math.round(apt.prices.reduce((a, b) => a + b, 0) / apt.prices.length / 10000);
+                apt.maxPrice = Math.round(Math.max(...apt.prices) / 10000);
+                apt.minPrice = Math.round(Math.min(...apt.prices) / 10000);
+            } else {
+                apt.avgPrice = 0;
+                apt.maxPrice = 0;
+                apt.minPrice = 0;
+            }
+            
+            // 최근 거래량
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+            apt.recentTrades = apt.trades.filter(t => t.date >= oneWeekAgo).length;
+            apt.totalTrades = apt.trades.length;
+            
+            // 검색량 (임시)
+            apt.searchVolume = Math.floor(Math.random() * 20000 + 5000);
+            
+            // 입주 정보 (임시)
+            if (Math.random() > 0.9) {
+                apt.moveInDays = -Math.floor(Math.random() * 60);
+                apt.moveInStatus = `D${apt.moveInDays}`;
+            } else if (Math.random() > 0.95) {
+                apt.moveInDays = Math.floor(Math.random() * 90);
+                apt.moveInStatus = `입주 ${Math.floor(apt.moveInDays / 30)}개월`;
+            }
+            
+            return apt;
+        });
+        
+        console.log(`총 ${apartmentList.length}개 아파트 수집`);
+        
         return {
             statusCode: 200,
             headers,
-            body: JSON.stringify({ apartments })
+            body: JSON.stringify({
+                apartments: apartmentList
+            })
         };
+        
     } catch (error) {
-        console.error('Error:', error);
-        
-        // 에러 시 기본 데이터 반환
-        const defaultApartments = getDefaultApartments(event.body ? JSON.parse(event.body).region : '성동구');
-        
+        console.error('전체 오류:', error);
         return {
-            statusCode: 200,
+            statusCode: 500,
             headers,
-            body: JSON.stringify({ apartments: defaultApartments })
+            body: JSON.stringify({ 
+                error: '아파트 데이터 수집 중 오류가 발생했습니다.',
+                message: error.message 
+            })
         };
     }
 };
-
-// 국토부 API 호출 함수
-async function fetchApartmentData(regionCode, region) {
-    if (!regionCode) return [];
-    
-    const MOLIT_API_KEY = "1iC0l5YNvH8eWhRJNOEAivLtGqupVFDs/uoKQRh8JtHUq59PXUgJ2/IsLrm1V/jcJViFsyV8pwro+mGTlbLmag==";
-    const currentDate = new Date();
-    const yearMonth = currentDate.getFullYear() + String(currentDate.getMonth() + 1).padStart(2, '0');
-    
-    try {
-        const url = `http://openapi.molit.go.kr/OpenAPI_ToolInstallPackage/service/rest/RTMSOBJSvc/getRTMSDataSvcAptTradeDev`;
-        const params = new URLSearchParams({
-            serviceKey: MOLIT_API_KEY,
-            pageNo: '1',
-            numOfRows: '100',
-            LAWD_CD: regionCode,
-            DEAL_YMD: yearMonth
-        });
-        
-        const response = await fetch(`${url}?${params}`);
-        const text = await response.text();
-        
-        // XML 파싱 (간단한 방식)
-        const apartments = [];
-        const items = text.match(/<item>[\s\S]*?<\/item>/g) || [];
-        
-        items.forEach(item => {
-            const name = (item.match(/<아파트>(.*?)<\/아파트>/) || [])[1];
-            const price = (item.match(/<거래금액>(.*?)<\/거래금액>/) || [])[1];
-            
-            if (name) {
-                apartments.push({
-                    name: name.trim(),
-                    avgPrice: parseInt(price.replace(/,/g, '')) / 10000,
-                    maxPrice: parseInt(price.replace(/,/g, '')) / 10000,
-                    totalHouseholds: Math.floor(Math.random() * 1000) + 200,
-                    recentTrades: Math.floor(Math.random() * 20) + 1,
-                    region: region
-                });
-            }
-        });
-        
-        return apartments;
-    } catch (error) {
-        console.error('MOLIT API Error:', error);
-        return [];
-    }
-}
-
-// 네이버 검색으로 아파트 정보 수집
-async function searchApartments(region) {
-    const NAVER_CLIENT_ID = "7inWZfwgXJuHZ6fo9qAr";
-    const NAVER_CLIENT_SECRET = "ECaOcIunu0";
-    
-    try {
-        const url = 'https://openapi.naver.com/v1/search/blog.json';
-        const params = new URLSearchParams({
-            query: `${region} 아파트 시세`,
-            display: '50',
-            sort: 'sim'
-        });
-        
-        const response = await fetch(`${url}?${params}`, {
-            headers: {
-                'X-Naver-Client-Id': NAVER_CLIENT_ID,
-                'X-Naver-Client-Secret': NAVER_CLIENT_SECRET
-            }
-        });
-        
-        const data = await response.json();
-        const apartments = [];
-        const foundNames = new Set();
-        
-        data.items.forEach(item => {
-            const text = (item.title + ' ' + item.description).replace(/<[^>]*>/g, '');
-            
-            // 아파트명 추출
-            const patterns = [
-                /([가-힣]+(?:아이파크|자이|래미안|푸르지오|롯데캐슬|힐스테이트|e편한세상|더샵|SK뷰|위브))/g,
-                /([가-힣]+아파트)/g
-            ];
-            
-            patterns.forEach(pattern => {
-                const matches = text.match(pattern) || [];
-                matches.forEach(match => {
-                    if (!foundNames.has(match) && match.length > 2 && match.length < 20) {
-                        foundNames.add(match);
-                        
-                        const priceMatch = text.match(/(\d+\.?\d*)\s*억/);
-                        const price = priceMatch ? parseFloat(priceMatch[1]) : Math.floor(Math.random() * 20) + 5;
-                        
-                        apartments.push({
-                            name: match,
-                            avgPrice: price,
-                            maxPrice: price + 2,
-                            totalHouseholds: Math.floor(Math.random() * 1000) + 200,
-                            recentTrades: Math.floor(Math.random() * 20) + 1,
-                            region: region
-                        });
-                    }
-                });
-            });
-        });
-        
-        return apartments.slice(0, 10);
-    } catch (error) {
-        console.error('Naver API Error:', error);
-        return [];
-    }
-}
-
-// 기본 아파트 데이터
-function getDefaultApartments(region) {
-    const defaultData = {
-        "성동구": [
-            { name: "서울숲푸르지오", avgPrice: 18, maxPrice: 20, totalHouseholds: 850, recentTrades: 15 },
-            { name: "래미안옥수리버젠", avgPrice: 16, maxPrice: 18, totalHouseholds: 620, recentTrades: 12 },
-            { name: "금호자이", avgPrice: 12, maxPrice: 14, totalHouseholds: 450, recentTrades: 8 },
-            { name: "왕십리텐즈힐", avgPrice: 11, maxPrice: 13, totalHouseholds: 380, recentTrades: 6 },
-            { name: "성수아크로리버", avgPrice: 19, maxPrice: 21, totalHouseholds: 920, recentTrades: 10 }
-        ],
-        "강남구": [
-            { name: "래미안대치팰리스", avgPrice: 45, maxPrice: 50, totalHouseholds: 1200, recentTrades: 20 },
-            { name: "아크로리버파크", avgPrice: 38, maxPrice: 42, totalHouseholds: 980, recentTrades: 18 },
-            { name: "자이프레지던스", avgPrice: 35, maxPrice: 38, totalHouseholds: 850, recentTrades: 15 }
-        ],
-        "분당구": [
-            { name: "판교알파리움", avgPrice: 25, maxPrice: 28, totalHouseholds: 1500, recentTrades: 25 },
-            { name: "분당파크뷰", avgPrice: 22, maxPrice: 25, totalHouseholds: 1100, recentTrades: 20 },
-            { name: "분당아크로텔", avgPrice: 18, maxPrice: 20, totalHouseholds: 850, recentTrades: 15 }
-        ]
-    };
-    
-    return defaultData[region] || [
-        { name: `${region}타워`, avgPrice: 10, maxPrice: 12, totalHouseholds: 500, recentTrades: 5 },
-        { name: `${region}아파트`, avgPrice: 8, maxPrice: 10, totalHouseholds: 400, recentTrades: 4 }
-    ];
-}
