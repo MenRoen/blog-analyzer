@@ -136,41 +136,22 @@ exports.handler = async (event, context) => {
                     const items = text.match(/<item>[\s\S]*?<\/item>/g) || [];
                     console.log(`파싱된 아이템 수: ${items.length}`);
                     
-                    // 첫 번째 아이템 샘플 출력 (디버깅용)
-                    if (items.length > 0) {
-                        console.log('첫 번째 아이템 전체:', items[0]);
-                        
-                        // 모든 태그 찾기
-                        const allTags = items[0].match(/<([^>\/\s]+)>/g);
-                        const uniqueTags = [...new Set(allTags)];
-                        console.log('사용 가능한 태그들:', uniqueTags.join(', '));
-                    }
-                    
-                    // 응답에 실제로 item이 없으면 다른 형식 확인
-                    if (items.length === 0 && text.includes('아파트')) {
-                        console.log('XML 구조 확인:', text.substring(0, 500));
-                    }
-                    
                     items.forEach(itemXml => {
                         const getTagValue = (tag) => {
                             const match = itemXml.match(new RegExp(`<${tag}>([^<]*)<\/${tag}>`));
                             return match ? match[1].trim() : '';
                         };
                         
-                        // 국토부 API 실제 태그명
-                        const aptName = getTagValue('아파트') || getTagValue('단지명') || getTagValue('아파트명');
-                        const dong = getTagValue('법정동') || getTagValue('법정동명') || getTagValue('동');
-                        const price = getTagValue('거래금액') || getTagValue('거래가격');
-                        const area = getTagValue('전용면적') || getTagValue('면적');
-                        const year = getTagValue('년');
-                        const month = getTagValue('월'); 
-                        const day = getTagValue('일');
-                        const floor = getTagValue('층');
-                        const buildYear = getTagValue('건축년도');
-                        
-                        if (!aptName) {
-                            console.log('아파트명 없음. 첫 번째 아이템:', itemXml.substring(0, 300));
-                        }
+                        // 국토부 API 실제 태그명 (영문)
+                        const aptName = getTagValue('aptNm');
+                        const dong = getTagValue('umdNm');
+                        const price = getTagValue('dealAmount');
+                        const area = getTagValue('excluUseAr');
+                        const year = getTagValue('dealYear');
+                        const month = getTagValue('dealMonth'); 
+                        const day = getTagValue('dealDay');
+                        const floor = getTagValue('floor');
+                        const buildYear = getTagValue('buildYear');
                         
                         if (aptName && dong) {
                             const key = `${dong}_${aptName}`;
