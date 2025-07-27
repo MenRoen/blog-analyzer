@@ -98,13 +98,14 @@ exports.handler = async (event, context) => {
                 targetDate.setMonth(targetDate.getMonth() - monthOffset);
                 const yearMonth = targetDate.getFullYear() + String(targetDate.getMonth() + 1).padStart(2, '0');
                 
-                const url = `https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade`;
+                // 1. 매매 데이터 조회
+                const tradeUrl = `https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade`;
                 
                 // URL 파라미터를 직접 구성
                 const queryString = `serviceKey=${MOLIT_API_KEY}&pageNo=1&numOfRows=500&LAWD_CD=${regionCode}&DEAL_YMD=${yearMonth}`;
-                const fullUrl = `${url}?${queryString}`;
+                const fullUrl = `${tradeUrl}?${queryString}`;
                 
-                console.log(`API 호출 URL: ${url}`);
+                console.log(`API 호출 URL: ${tradeUrl}`);
                 console.log(`파라미터: LAWD_CD=${regionCode}, DEAL_YMD=${yearMonth}`);
                 
                 try {
@@ -191,6 +192,64 @@ exports.handler = async (event, context) => {
                 
                 // API 제한 회피
                 await new Promise(resolve => setTimeout(resolve, 200));
+                
+                // 2. 전월세 데이터 조회
+                const rentUrl = `https://apis.data.go.kr/1613000/RTMSDataSvcAptRent/getRTMSDataSvcAptRent`;
+                const rentQueryString = `serviceKey=${MOLIT_API_KEY}&pageNo=1&numOfRows=500&LAWD_CD=${regionCode}&DEAL_YMD=${yearMonth}`;
+                const fullRentUrl = `${rentUrl}?${rentQueryString}`;
+                
+                try {
+                    const rentResponse = await fetch(fullRentUrl);
+                    const rentText = await rentResponse.text();
+                    
+                    if (rentText.includes('<resultCode>')) {
+                        const resultCode = rentText.match(/<resultCode>(\d+)<\/resultCode>/);
+                        if (resultCode && (resultCode[1] === '00' || resultCode[1] === '000')) {
+                            const rentItems = rentText.match(/<item>[\s\S]*?<\/item>/g) || [];
+                            console.log(`전월세 데이터 수: ${rentItems.length}`);
+                            
+                            rentItems.forEach(itemXml => {
+                                const getTagValue = (tag) => {
+                                    const match = itemXml.match(new RegExp(`<${tag}>([^<]*)<\/${tag}>`));
+                                    return match ? match[1].trim() : '';
+                                };
+                                
+                                const aptName = getTagValue('aptNm');
+                                const dong = getTagValue('umdNm');
+                                const rentType = getTagValue('rentGbn'); // 전세/월세 구분
+                                const deposit = getTagValue('보증금액') || getTagValue('deposit');
+                                const monthlyRent = getTagValue('월세금액') || getTagValue('monthlyRent') || '0';
+                                
+                                if (aptName && dong) {
+                                    const key = `${dong}_${aptName}`;
+                                    
+                                    if (!apartments[key]) {
+                                        apartments[key] = {
+                                            name: aptName,
+                                            dong: dong.replace(/[0-9]/g, '').trim(),
+                                            prices: [],
+                                            rentPrices: [],
+                                            buildYear: getTagValue('buildYear'),
+                                            trades: [],
+                                            rents: [],
+                                            totalHouseholds: 0,
+                                            region: region
+                                        };
+                                    }
+                                    
+                                    apartments[key].rents.push({
+                                        type: rentType,
+                                        deposit: deposit,
+                                        monthly: monthlyRent,
+                                        date: new Date(getTagValue('dealYear'), parseInt(getTagValue('dealMonth')) - 1, getTagValue('dealDay'))
+                                    });
+                                }
+                            });
+                        }
+                    }
+                } catch (error) {
+                    console.error('전월세 데이터 조회 오류:', error);
+                }
             }
         }
         
@@ -211,6 +270,17 @@ exports.handler = async (event, context) => {
             oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
             apt.recentTrades = apt.trades.filter(t => t.date >= oneWeekAgo).length;
             apt.totalTrades = apt.trades.length;
+            
+            // 전월세 정보 정리
+            if (apt.rents && apt.rents.length > 0) {
+                const recentRents = apt.rents.slice(-5); // 최근 5건
+                apt.rentInfo = recentRents.map(r => ({
+                    type: r.type === '전세' ? '전세' : '월세',
+                    price: r.type === '전세' ? 
+                        `${Math.round(parseInt(r.deposit.replace(/,/g, '')) / 10000)}억` :
+                        `${Math.round(parseInt(r.deposit.replace(/,/g, '')) / 10000)}억/${r.monthly}만`
+                }));
+            }
             
             return apt;
         });
