@@ -138,7 +138,12 @@ exports.handler = async (event, context) => {
                     
                     // 첫 번째 아이템 샘플 출력 (디버깅용)
                     if (items.length > 0) {
-                        console.log('첫 번째 아이템 샘플:', items[0].substring(0, 200) + '...');
+                        console.log('첫 번째 아이템 전체:', items[0]);
+                        
+                        // 모든 태그 찾기
+                        const allTags = items[0].match(/<([^>\/\s]+)>/g);
+                        const uniqueTags = [...new Set(allTags)];
+                        console.log('사용 가능한 태그들:', uniqueTags.join(', '));
                     }
                     
                     // 응답에 실제로 item이 없으면 다른 형식 확인
@@ -152,11 +157,20 @@ exports.handler = async (event, context) => {
                             return match ? match[1].trim() : '';
                         };
                         
-                        // 다양한 태그명 시도
-                        const aptName = getTagValue('아파트') || getTagValue('아파트명') || getTagValue('단지명');
-                        const dong = getTagValue('법정동') || getTagValue('동') || getTagValue('법정동명');
+                        // 국토부 API 실제 태그명
+                        const aptName = getTagValue('아파트') || getTagValue('단지명') || getTagValue('아파트명');
+                        const dong = getTagValue('법정동') || getTagValue('법정동명') || getTagValue('동');
+                        const price = getTagValue('거래금액') || getTagValue('거래가격');
+                        const area = getTagValue('전용면적') || getTagValue('면적');
+                        const year = getTagValue('년');
+                        const month = getTagValue('월'); 
+                        const day = getTagValue('일');
+                        const floor = getTagValue('층');
+                        const buildYear = getTagValue('건축년도');
                         
-                        console.log(`아파트명: ${aptName}, 동: ${dong}`); // 디버깅용
+                        if (!aptName) {
+                            console.log('아파트명 없음. 첫 번째 아이템:', itemXml.substring(0, 300));
+                        }
                         
                         if (aptName && dong) {
                             const key = `${dong}_${aptName}`;
@@ -166,27 +180,27 @@ exports.handler = async (event, context) => {
                                     name: aptName,
                                     dong: dong.replace(/[0-9]/g, '').trim(), // 숫자 제거
                                     prices: [],
-                                    buildYear: getTagValue('건축년도'),
+                                    buildYear: buildYear || '',
                                     trades: [],
-                                    totalHouseholds: 0, // API에서 제공하지 않음
+                                    totalHouseholds: 0,
                                     region: region
                                 };
                             }
                             
-                            const price = parseInt(getTagValue('거래금액').replace(/,/g, ''));
-                            apartments[key].prices.push(price);
+                            const priceNum = parseInt(price.replace(/[,\s]/g, ''));
+                            apartments[key].prices.push(priceNum);
                             
                             const tradeDate = new Date(
-                                getTagValue('년'),
-                                parseInt(getTagValue('월')) - 1,
-                                getTagValue('일')
+                                parseInt(year),
+                                parseInt(month) - 1,
+                                parseInt(day)
                             );
                             
                             apartments[key].trades.push({
-                                price: getTagValue('거래금액'),
+                                price: price,
                                 date: tradeDate,
-                                area: getTagValue('전용면적'),
-                                floor: getTagValue('층')
+                                area: area,
+                                floor: floor
                             });
                         }
                     });
