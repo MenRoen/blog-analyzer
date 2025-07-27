@@ -4,5 +4,6 @@
   "description": "부동산 블로그 분석기",
   "dependencies": {
     "node-fetch": "^2.6.7"
-  }
+  },
+  "type": "commonjs"
 }
