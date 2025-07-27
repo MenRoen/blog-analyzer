@@ -407,7 +407,6 @@ function sortApartments(type) {
                 <span class="info-badge">💰 ${apt.maxPrice || apt.avgPrice || 0}억</span>
                 <span class="info-badge">🏠 ${apt.totalHouseholds || '?'}세대</span>
                 <span class="info-badge">📈 거래: ${apt.recentTrades || 0}건</span>
-                <span class="info-badge">🔍 검색량: ${(apt.searchVolume || 0).toLocaleString()}/월</span>
             </div>
             <div class="blog-ranking">
                 📊 ${apt.name} 커튼: ${formatRank(apt.ranking?.curtain)} | 
@@ -441,11 +440,11 @@ function exportToCSV() {
     if (!analysisResults) return;
     
     let csv = '\ufeff'; // BOM for UTF-8
-    csv += '동,아파트명,최고가(억),세대수,최근거래,검색량,커튼순위,블라인드순위,내포스팅수\n';
+    csv += '동,아파트명,최고가(억),세대수,최근거래,전체거래,커튼순위,블라인드순위,내포스팅수\n';
     
     Object.values(analysisResults.dongData).forEach(dong => {
         dong.apartments.forEach(apt => {
-            csv += `"${dong.name}","${apt.name}",${apt.maxPrice || 0},${apt.totalHouseholds || 0},${apt.recentTrades || 0},${apt.searchVolume || 0},"${formatRank(apt.ranking?.curtain)}","${formatRank(apt.ranking?.blind)}",${apt.myPosts || 0}\n`;
+            csv += `"${dong.name}","${apt.name}",${apt.maxPrice || 0},${apt.totalHouseholds || 0},${apt.recentTrades || 0},${apt.totalTrades || 0},"${formatRank(apt.ranking?.curtain)}","${formatRank(apt.ranking?.blind)}",${apt.myPosts || 0}\n`;
         });
     });
     
