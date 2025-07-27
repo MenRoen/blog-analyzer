@@ -3,205 +3,249 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>부동산 블로그 마케팅 분석기</title>
+    <title>부동산 블로그 분석기</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: #f5f7fa;
-            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
             padding: 20px;
         }
-        
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 40px;
-            border-radius: 20px 20px 0 0;
+
+        h1 {
             text-align: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        }
-        
-        .header h1 {
+            color: #2c3e50;
+            margin-bottom: 30px;
             font-size: 2.5rem;
-            margin-bottom: 10px;
         }
-        
-        .header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
-        }
-        
-        .main-content {
-            background: white;
-            padding: 40px;
-            border-radius: 0 0 20px 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        }
-        
+
         .input-section {
-            background: #f8f9fa;
+            background: white;
             padding: 30px;
             border-radius: 15px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
             margin-bottom: 30px;
         }
-        
-        .input-group {
-            margin-bottom: 25px;
+
+        .form-group {
+            margin-bottom: 20px;
         }
-        
-        .input-group label {
+
+        .form-group label {
             display: block;
             font-weight: 600;
-            color: #333;
             margin-bottom: 10px;
-            font-size: 1.1rem;
+            color: #555;
         }
-        
-        .blog-selection {
+
+        .region-selectors {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        select, input[type="text"] {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            width: 100%;
+            transition: border-color 0.3s;
+        }
+
+        select:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .blog-selector {
             display: flex;
             gap: 20px;
             margin-bottom: 20px;
         }
-        
+
         .blog-option {
             flex: 1;
             padding: 15px;
-            background: white;
             border: 2px solid #e0e0e0;
             border-radius: 10px;
+            text-align: center;
             cursor: pointer;
             transition: all 0.3s;
-            text-align: center;
         }
-        
+
         .blog-option:hover {
             border-color: #667eea;
-            transform: translateY(-2px);
         }
-        
+
         .blog-option.selected {
             background: #667eea;
             color: white;
             border-color: #667eea;
         }
-        
-        input[type="text"] {
+
+        .analyze-btn {
             width: 100%;
             padding: 15px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 16px;
-            transition: border-color 0.3s;
-        }
-        
-        input[type="text"]:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        
-        .analyze-btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            padding: 18px 40px;
+            border-radius: 10px;
             font-size: 18px;
             font-weight: 600;
-            border-radius: 10px;
             cursor: pointer;
-            transition: all 0.3s;
-            width: 100%;
+            transition: transform 0.3s;
         }
-        
+
         .analyze-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
         }
-        
-        .analyze-btn:disabled {
-            opacity: 0.7;
-            cursor: not-allowed;
-        }
-        
+
         .loading {
-            display: none;
             text-align: center;
-            padding: 60px;
+            padding: 50px;
+            display: none;
         }
-        
+
         .spinner {
-            width: 60px;
-            height: 60px;
-            border: 5px solid #f3f3f3;
-            border-top: 5px solid #667eea;
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin: 0 auto 20px;
         }
-        
+
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        
+
         .results {
             display: none;
         }
-        
-        .tabs {
-            display: flex;
-            gap: 15px;
+
+        .overall-ranking {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
             margin-bottom: 30px;
-            border-bottom: 2px solid #e0e0e0;
-            padding-bottom: 0;
+            text-align: center;
         }
-        
-        .tab {
-            padding: 15px 30px;
-            background: none;
-            border: none;
+
+        .overall-ranking h2 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .ranking-info {
+            font-size: 1.2rem;
+            color: #667eea;
             font-weight: 600;
-            font-size: 16px;
-            color: #666;
+        }
+
+        .special-sections {
+            margin-bottom: 30px;
+        }
+
+        .special-section {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .special-section h3 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+
+        .move-in-item {
+            padding: 15px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .move-in-item:last-child {
+            border-bottom: none;
+        }
+
+        .dong-list {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .dong-item {
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            margin-bottom: 15px;
             cursor: pointer;
             transition: all 0.3s;
-            border-bottom: 3px solid transparent;
-            margin-bottom: -2px;
         }
-        
-        .tab:hover {
-            color: #667eea;
+
+        .dong-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 3px 15px rgba(102, 126, 234, 0.2);
         }
-        
-        .tab.active {
-            color: #667eea;
-            border-bottom-color: #667eea;
+
+        .dong-item.active {
+            border-color: #667eea;
+            background: #f8f9ff;
         }
-        
-        .tab-content {
+
+        .dong-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .dong-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .dong-stats {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .apartment-list {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
             display: none;
         }
-        
-        .tab-content.active {
-            display: block;
-        }
-        
+
         .sort-buttons {
             display: flex;
             gap: 10px;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
         }
-        
+
         .sort-btn {
             padding: 10px 20px;
             background: #f0f0f0;
@@ -211,312 +255,165 @@
             cursor: pointer;
             transition: all 0.3s;
         }
-        
+
         .sort-btn:hover {
             background: #e0e0e0;
         }
-        
+
         .sort-btn.active {
             background: #667eea;
             color: white;
         }
-        
-        .apartment-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-            gap: 20px;
-        }
-        
-        .apartment-card {
-            background: #f8f9fa;
-            padding: 25px;
-            border-radius: 15px;
+
+        .apartment-item {
+            padding: 20px;
             border: 1px solid #e0e0e0;
-            transition: all 0.3s;
-            position: relative;
-        }
-        
-        .apartment-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-        }
-        
-        .apartment-rank {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: #667eea;
-        }
-        
-        .apartment-name {
-            font-size: 1.4rem;
-            font-weight: 600;
-            color: #333;
+            border-radius: 10px;
             margin-bottom: 15px;
-            padding-right: 50px;
+            transition: all 0.3s;
         }
-        
+
+        .apartment-item:hover {
+            box-shadow: 0 3px 15px rgba(0,0,0,0.1);
+        }
+
+        .apartment-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+
         .apartment-info {
             display: flex;
+            gap: 15px;
             flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
         }
-        
+
         .info-badge {
-            background: white;
-            padding: 6px 12px;
+            background: #f0f0f0;
+            padding: 5px 12px;
             border-radius: 20px;
-            font-size: 14px;
-            border: 1px solid #e0e0e0;
+            font-size: 0.9rem;
         }
-        
-        .price {
-            color: #f39c12;
-            font-weight: 600;
-        }
-        
-        .search-volume {
-            color: #667eea;
-            font-weight: 600;
-        }
-        
-        .keyword-rankings {
-            margin-top: 10px;
-            font-size: 14px;
-            color: #555;
+
+        .blog-ranking {
+            background: #f8f9ff;
             padding: 10px;
-            background: white;
             border-radius: 8px;
-        }
-        
-        .related-keywords {
             margin-top: 10px;
-            font-size: 13px;
-            color: #666;
         }
-        
-        .related-keywords span {
-            display: inline-block;
-            background: #e8ecf4;
-            padding: 4px 10px;
-            border-radius: 15px;
-            margin-right: 5px;
-            margin-bottom: 5px;
-        }
-        
-        .keyword-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 20px;
-        }
-        
-        .keyword-card {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 12px;
-            border: 1px solid #e0e0e0;
-        }
-        
-        .keyword-name {
-            font-size: 1.2rem;
-            font-weight: 600;
-            margin-bottom: 15px;
-            color: #333;
-        }
-        
-        .keyword-stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        
-        .stat-item {
-            text-align: center;
-            padding: 10px;
-            background: white;
-            border-radius: 8px;
-        }
-        
-        .stat-label {
-            font-size: 12px;
-            color: #666;
-            margin-bottom: 5px;
-        }
-        
-        .stat-value {
-            font-size: 18px;
-            font-weight: 600;
-        }
-        
-        .rank-good {
-            color: #27ae60;
-        }
-        
-        .rank-bad {
-            color: #e74c3c;
-        }
-        
-        .difficulty-low {
-            color: #27ae60;
-        }
-        
-        .difficulty-medium {
-            color: #f39c12;
-        }
-        
-        .difficulty-high {
-            color: #e74c3c;
-        }
-        
-        .recommendation-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
-        }
-        
-        .recommendation-card {
-            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
-            padding: 25px;
-            border-radius: 15px;
-            border: 2px solid #667eea30;
-        }
-        
-        .recommendation-title {
-            font-size: 1.2rem;
-            font-weight: 600;
-            color: #667eea;
-            margin-bottom: 15px;
-        }
-        
-        .recommendation-content {
-            font-size: 15px;
-            line-height: 1.6;
-            color: #555;
-        }
-        
-        .export-section {
-            margin-top: 30px;
-            text-align: center;
-        }
-        
+
         .export-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 15px 30px;
             background: #27ae60;
             color: white;
             border: none;
-            padding: 15px 40px;
-            border-radius: 10px;
-            font-size: 16px;
+            border-radius: 50px;
             font-weight: 600;
             cursor: pointer;
+            box-shadow: 0 3px 15px rgba(39, 174, 96, 0.3);
             transition: all 0.3s;
         }
-        
+
         .export-btn:hover {
-            background: #219a52;
             transform: translateY(-2px);
-        }
-        
-        .progress-text {
-            margin-top: 20px;
-            color: #666;
-            font-size: 16px;
-        }
-        
-        .error {
-            background: #fee;
-            color: #c33;
-            padding: 20px;
-            border-radius: 10px;
-            margin-top: 20px;
-            display: none;
-        }
-        
-        @media (max-width: 768px) {
-            .apartment-grid, .keyword-grid, .recommendation-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .blog-selection {
-                flex-direction: column;
-            }
+            box-shadow: 0 5px 20px rgba(39, 174, 96, 0.4);
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>🏢 부동산 블로그 마케팅 분석기</h1>
-            <p>실시간 아파트 정보와 블로그 순위를 한번에 분석합니다</p>
+        <h1>🏢 부동산 블로그 분석기</h1>
+        
+        <div class="input-section">
+            <div class="form-group">
+                <label>📍 지역 선택</label>
+                <div class="region-selectors">
+                    <select id="sido">
+                        <option value="">시/도 선택</option>
+                        <option value="서울">서울특별시</option>
+                        <option value="경기">경기도</option>
+                        <option value="인천">인천광역시</option>
+                        <option value="부산">부산광역시</option>
+                        <option value="대구">대구광역시</option>
+                        <option value="광주">광주광역시</option>
+                        <option value="대전">대전광역시</option>
+                        <option value="울산">울산광역시</option>
+                        <option value="세종">세종특별자치시</option>
+                    </select>
+                    <select id="gugun" disabled>
+                        <option value="">구/군 선택</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>📝 블로그 선택</label>
+                <div class="blog-selector">
+                    <div class="blog-option selected" data-blog="mendeco">
+                        mendeco
+                    </div>
+                    <div class="blog-option" data-blog="roencurtain">
+                        roencurtain
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>🔍 분석 키워드</label>
+                <input type="text" id="keywords" value="커튼,블라인드" readonly>
+            </div>
+            
+            <button class="analyze-btn" onclick="startAnalysis()">분석 시작</button>
         </div>
         
-        <div class="main-content">
-            <div class="input-section">
-                <div class="input-group">
-                    <label>📝 블로그 선택</label>
-                    <div class="blog-selection">
-                        <div class="blog-option selected" onclick="selectBlog('mendeco', this)">
-                            mendeco
-                        </div>
-                        <div class="blog-option" onclick="selectBlog('roencurtain', this)">
-                            roencurtain
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="input-group">
-                    <label>📍 분석할 지역</label>
-                    <input type="text" id="region" placeholder="예: 성동구, 강남구, 분당구" value="성동구">
-                </div>
-                
-                <div class="input-group">
-                    <label>🔍 분석할 키워드 (쉼표로 구분)</label>
-                    <input type="text" id="keywords" placeholder="예: 커튼, 블라인드, 이사청소, 샷시" value="커튼, 블라인드">
-                </div>
-                
-                <button class="analyze-btn" onclick="startAnalysis()">분석 시작</button>
-            </div>
-            
-            <div id="loading" class="loading">
-                <div class="spinner"></div>
-                <div class="progress-text" id="progress">분석 준비 중...</div>
-            </div>
-            
-            <div id="results" class="results">
-                <div class="tabs">
-                    <button class="tab active" onclick="switchTab('apartments')">🏢 아파트 정보</button>
-                    <button class="tab" onclick="switchTab('keywords')">📊 키워드 분석</button>
-                    <button class="tab" onclick="switchTab('recommendations')">💡 추천 전략</button>
-                </div>
-                
-                <div id="apartments" class="tab-content active">
-                    <div class="sort-buttons">
-                        <button class="sort-btn active" onclick="sortApartments('price')">💰 가격순</button>
-                        <button class="sort-btn" onclick="sortApartments('households')">🏢 세대수순</button>
-                        <button class="sort-btn" onclick="sortApartments('trades')">📊 거래량순</button>
-                        <button class="sort-btn" onclick="sortApartments('search')">🔍 검색량순</button>
-                    </div>
-                    <div id="apartmentsList" class="apartment-grid"></div>
-                </div>
-                
-                <div id="keywords" class="tab-content">
-                    <div id="keywordsList" class="keyword-grid"></div>
-                </div>
-                
-                <div id="recommendations" class="tab-content">
-                    <div id="recommendationsList" class="recommendation-grid"></div>
-                </div>
-                
-                <div class="export-section">
-                    <button class="export-btn" onclick="exportToCSV()">📥 결과 다운로드 (CSV)</button>
-                </div>
-            </div>
-            
-            <div id="error" class="error"></div>
+        <div class="loading">
+            <div class="spinner"></div>
+            <p>분석 중... <span id="progress"></span></p>
         </div>
+        
+        <div class="results">
+            <div class="overall-ranking">
+                <h2>📊 전체 블로그 순위</h2>
+                <div id="overallRanking" class="ranking-info"></div>
+            </div>
+            
+            <div class="special-sections">
+                <div class="special-section" id="moveInSection" style="display: none;">
+                    <h3>🆕 입주 예정 아파트 (D-60 이내)</h3>
+                    <div id="moveInList"></div>
+                </div>
+                
+                <div class="special-section" id="recentMoveSection" style="display: none;">
+                    <h3>✨ 최근 입주 시작 (3개월 이내)</h3>
+                    <div id="recentMoveList"></div>
+                </div>
+            </div>
+            
+            <div class="dong-list">
+                <h3>🏘️ 동별 아파트 현황</h3>
+                <div id="dongList"></div>
+            </div>
+            
+            <div class="apartment-list">
+                <h3 id="selectedDongName"></h3>
+                <div class="sort-buttons">
+                    <button class="sort-btn active" onclick="sortApartments('price')">💰 가격순</button>
+                    <button class="sort-btn" onclick="sortApartments('households')">🏢 세대수순</button>
+                    <button class="sort-btn" onclick="sortApartments('trades')">📊 거래량순</button>
+                </div>
+                <div id="apartmentList"></div>
+            </div>
+        </div>
+        
+        <button class="export-btn" onclick="exportToCSV()" style="display: none;">
+            📥 결과 다운로드
+        </button>
     </div>
     
     <script src="app.js"></script>
