@@ -417,9 +417,11 @@ function sortApartments(type) {
                 🏠 ${apt.name}
             </div>
             <div class="apartment-info">
-                <span class="info-badge">💰 ${apt.maxPrice || apt.avgPrice || 0}억</span>
+                <span class="info-badge">💰 매매 ${apt.maxPrice || apt.avgPrice || 0}억</span>
                 <span class="info-badge">📈 최근거래: ${apt.recentTrades || 0}건</span>
                 <span class="info-badge">📅 전체거래: ${apt.totalTrades || 0}건</span>
+                ${apt.rentInfo && apt.rentInfo.length > 0 ? 
+                    `<span class="info-badge">🏠 ${apt.rentInfo[0].type}: ${apt.rentInfo[0].price}</span>` : ''}
             </div>
             <div class="blog-ranking">
                 📊 ${apt.name} 커튼: ${formatRank(apt.ranking?.curtain)} | 
