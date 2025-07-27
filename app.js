@@ -209,7 +209,7 @@ async function performAnalysis(region) {
 // 아파트 데이터 가져오기
 async function getApartments(region) {
     try {
-        const response = await fetch('/api/get-apartments', {
+        const response = await fetch('/.netlify/functions/get-apartments', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ region })
@@ -217,7 +217,14 @@ async function getApartments(region) {
         
         if (!response.ok) throw new Error('API 오류');
         
-        return await response.json();
+        const data = await response.json();
+        
+        // 데이터가 없으면 샘플 데이터 사용
+        if (!data.apartments || data.apartments.length === 0) {
+            return generateSampleData(region);
+        }
+        
+        return data;
     } catch (error) {
         console.error('아파트 데이터 수집 오류:', error);
         // 샘플 데이터 반환
@@ -228,7 +235,7 @@ async function getApartments(region) {
 // 순위 확인
 async function checkRanking(keyword, blogId) {
     try {
-        const response = await fetch('/api/check-ranking', {
+        const response = await fetch('/.netlify/functions/check-ranking', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ keyword, blogId })
@@ -247,7 +254,7 @@ async function checkRanking(keyword, blogId) {
 // 내 포스팅 수 확인
 async function countMyPosts(keyword, blogId) {
     try {
-        const response = await fetch('/api/search-naver', {
+        const response = await fetch('/.netlify/functions/search-naver', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ keyword: `${keyword} site:blog.naver.com/${blogId}` })
@@ -435,26 +442,38 @@ function exportToCSV() {
 
 // 샘플 데이터 생성 (API 실패 시)
 function generateSampleData(region) {
-    const dongs = ['성수동', '금호동', '옥수동', '왕십리동', '용답동', '마장동', '사근동', '행당동', '응봉동'];
-    const brands = ['래미안', '자이', '아이파크', 'e편한세상', '푸르지오', '롯데캐슬', '힐스테이트'];
+    // 지역별 동 데이터
+    const dongsByRegion = {
+        '성동구': ['성수동', '금호동', '옥수동', '왕십리동', '용답동', '마장동', '사근동', '행당동', '응봉동'],
+        '광진구': ['자양동', '구의동', '광장동', '중곡동', '화양동', '능동', '군자동'],
+        '강남구': ['압구정동', '청담동', '삼성동', '대치동', '역삼동', '도곡동', '개포동', '일원동', '수서동', '세곡동'],
+        '서초구': ['서초동', '잠원동', '반포동', '방배동', '양재동', '내곡동', '우면동', '신원동', '염곡동'],
+        '송파구': ['잠실동', '신천동', '송파동', '석촌동', '삼전동', '가락동', '문정동', '장지동', '위례동', '거여동', '마천동'],
+        '강동구': ['천호동', '성내동', '길동', '둔촌동', '암사동', '명일동', '고덕동', '상일동', '강일동'],
+        '마포구': ['공덕동', '아현동', '도화동', '용강동', '대흥동', '염리동', '신수동', '서강동', '창전동', '상수동', '합정동', '망원동', '연남동', '성산동', '상암동'],
+        '용산구': ['이태원동', '한남동', '용산동', '갈월동', '남영동', '원효로동', '효창동', '용문동', '한강로동', '이촌동', '보광동']
+    };
+    
+    const dongs = dongsByRegion[region] || ['1동', '2동', '3동', '4동', '5동'];
+    const brands = ['래미안', '자이', '아이파크', 'e편한세상', '푸르지오', '롯데캐슬', '힐스테이트', '더샵', 'SK뷰', '위브'];
     
     const apartments = [];
     
     dongs.forEach(dong => {
-        const count = Math.floor(Math.random() * 5) + 3;
+        const count = Math.floor(Math.random() * 8) + 5; // 동당 5~12개 아파트
         for (let i = 0; i < count; i++) {
             const brand = brands[Math.floor(Math.random() * brands.length)];
-            const moveInDays = Math.random() > 0.8 ? -Math.floor(Math.random() * 60) : 
+            const moveInDays = Math.random() > 0.85 ? -Math.floor(Math.random() * 60) : 
                             Math.random() > 0.9 ? Math.floor(Math.random() * 90) : null;
             
             apartments.push({
                 name: `${dong} ${brand}`,
                 dong: dong,
-                maxPrice: Math.floor(Math.random() * 30 + 10),
-                avgPrice: Math.floor(Math.random() * 25 + 8),
-                totalHouseholds: Math.floor(Math.random() * 800 + 200),
-                recentTrades: Math.floor(Math.random() * 10),
-                searchVolume: Math.floor(Math.random() * 20000 + 5000),
+                maxPrice: Math.floor(Math.random() * 50 + 10),
+                avgPrice: Math.floor(Math.random() * 45 + 8),
+                totalHouseholds: Math.floor(Math.random() * 1200 + 200),
+                recentTrades: Math.floor(Math.random() * 15),
+                searchVolume: Math.floor(Math.random() * 30000 + 5000),
                 moveInDays: moveInDays,
                 moveInStatus: moveInDays ? (moveInDays < 0 ? `D${moveInDays}` : `입주 ${Math.floor(moveInDays / 30)}개월`) : null
             });
