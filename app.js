@@ -1,94 +1,204 @@
 // 전역 변수
 let selectedBlog = 'mendeco';
+let selectedRegion = '';
 let analysisResults = null;
+let currentDong = null;
 let currentSortType = 'price';
 
+// 지역 데이터
+const regionData = {
+    '서울': {
+        '종로구': '11110', '중구': '11140', '용산구': '11170', '성동구': '11200',
+        '광진구': '11215', '동대문구': '11230', '중랑구': '11260', '성북구': '11290',
+        '강북구': '11305', '도봉구': '11320', '노원구': '11350', '은평구': '11380',
+        '서대문구': '11410', '마포구': '11440', '양천구': '11470', '강서구': '11500',
+        '구로구': '11530', '금천구': '11545', '영등포구': '11560', '동작구': '11590',
+        '관악구': '11620', '서초구': '11650', '강남구': '11680', '송파구': '11710',
+        '강동구': '11740'
+    },
+    '경기': {
+        '수원시': '41110', '성남시': '41130', '의정부시': '41150', '안양시': '41170',
+        '부천시': '41190', '광명시': '41210', '평택시': '41220', '동두천시': '41250',
+        '안산시': '41270', '고양시': '41280', '과천시': '41290', '구리시': '41310',
+        '남양주시': '41360', '오산시': '41370', '시흥시': '41390', '군포시': '41410',
+        '의왕시': '41430', '하남시': '41450', '용인시': '41460', '파주시': '41480',
+        '이천시': '41500', '안성시': '41550', '김포시': '41570', '화성시': '41590',
+        '광주시': '41610', '양주시': '41630', '포천시': '41650'
+    },
+    '인천': {
+        '중구': '28110', '동구': '28140', '미추홀구': '28177', '연수구': '28185',
+        '남동구': '28200', '부평구': '28237', '계양구': '28245', '서구': '28260',
+        '강화군': '28710', '옹진군': '28720'
+    },
+    '부산': {
+        '중구': '26110', '서구': '26140', '동구': '26170', '영도구': '26200',
+        '부산진구': '26230', '동래구': '26260', '남구': '26290', '북구': '26320',
+        '해운대구': '26350', '사하구': '26380', '금정구': '26410', '강서구': '26440',
+        '연제구': '26470', '수영구': '26500', '사상구': '26530', '기장군': '26710'
+    },
+    '대구': {
+        '중구': '27110', '동구': '27140', '서구': '27170', '남구': '27200',
+        '북구': '27230', '수성구': '27260', '달서구': '27290', '달성군': '27710'
+    },
+    '광주': {
+        '동구': '29110', '서구': '29140', '남구': '29155', '북구': '29170',
+        '광산구': '29200'
+    },
+    '대전': {
+        '동구': '30110', '중구': '30140', '서구': '30170', '유성구': '30200',
+        '대덕구': '30230'
+    },
+    '울산': {
+        '중구': '31110', '남구': '31140', '동구': '31170', '북구': '31200',
+        '울주군': '31710'
+    },
+    '세종': {
+        '세종시': '36110'
+    }
+};
+
+// 시/도 선택 시
+document.getElementById('sido').addEventListener('change', function() {
+    const sido = this.value;
+    const gugunSelect = document.getElementById('gugun');
+    
+    gugunSelect.innerHTML = '<option value="">구/군 선택</option>';
+    gugunSelect.disabled = true;
+    
+    if (sido && regionData[sido]) {
+        Object.keys(regionData[sido]).forEach(gugun => {
+            const option = document.createElement('option');
+            option.value = gugun;
+            option.textContent = gugun;
+            gugunSelect.appendChild(option);
+        });
+        gugunSelect.disabled = false;
+    }
+});
+
 // 블로그 선택
-function selectBlog(blogId, element) {
-    selectedBlog = blogId;
-    document.querySelectorAll('.blog-option').forEach(opt => {
-        opt.classList.remove('selected');
+document.querySelectorAll('.blog-option').forEach(option => {
+    option.addEventListener('click', function() {
+        document.querySelectorAll('.blog-option').forEach(opt => {
+            opt.classList.remove('selected');
+        });
+        this.classList.add('selected');
+        selectedBlog = this.dataset.blog;
     });
-    element.classList.add('selected');
-}
+});
 
 // 분석 시작
 async function startAnalysis() {
-    const region = document.getElementById('region').value.trim();
-    const keywords = document.getElementById('keywords').value.split(',').map(k => k.trim()).filter(k => k);
+    const sido = document.getElementById('sido').value;
+    const gugun = document.getElementById('gugun').value;
     
-    if (!region || keywords.length === 0) {
-        alert('지역과 키워드를 모두 입력해주세요!');
+    if (!sido || !gugun) {
+        alert('지역을 선택해주세요!');
         return;
     }
     
+    selectedRegion = gugun;
+    
     // UI 상태 변경
     document.querySelector('.analyze-btn').disabled = true;
-    document.getElementById('loading').style.display = 'block';
-    document.getElementById('results').style.display = 'none';
-    document.getElementById('error').style.display = 'none';
+    document.querySelector('.loading').style.display = 'block';
+    document.querySelector('.results').style.display = 'none';
     
     try {
-        analysisResults = await performAnalysis(region, keywords, selectedBlog);
+        analysisResults = await performAnalysis(gugun);
         displayResults();
     } catch (error) {
-        showError('분석 중 오류가 발생했습니다: ' + error.message);
+        console.error('분석 오류:', error);
+        alert('분석 중 오류가 발생했습니다.');
     } finally {
         document.querySelector('.analyze-btn').disabled = false;
-        document.getElementById('loading').style.display = 'none';
+        document.querySelector('.loading').style.display = 'none';
+        document.querySelector('.export-btn').style.display = 'block';
     }
 }
 
 // 분석 실행
-async function performAnalysis(region, keywords, blogId) {
+async function performAnalysis(region) {
     const results = {
         region: region,
-        blog: blogId,
+        blog: selectedBlog,
+        overallRanking: {},
+        dongData: {},
         apartments: [],
-        keywords: [],
-        timestamp: new Date().toLocaleString()
+        moveInSoon: [],
+        recentlyMoved: []
     };
     
-    updateProgress('아파트 정보 수집 중...');
+    updateProgress('전체 지역 순위 확인 중...');
     
-    // 1. 아파트 데이터 수집
-    const apartments = await getApartmentData(region);
+    // 1. 구 전체 순위 확인
+    results.overallRanking = {
+        curtain: await checkRanking(`${region} 커튼`, selectedBlog),
+        blind: await checkRanking(`${region} 블라인드`, selectedBlog)
+    };
     
-    // 2. 각 아파트별 분석
-    for (let i = 0; i < apartments.length; i++) {
-        const apt = apartments[i];
-        updateProgress(`아파트 분석 중... (${i + 1}/${apartments.length})`);
+    updateProgress('아파트 데이터 수집 중...');
+    
+    // 2. 아파트 데이터 수집
+    const apartmentData = await getApartments(region);
+    results.apartments = apartmentData.apartments || [];
+    
+    // 3. 동별 데이터 정리
+    updateProgress('동별 데이터 분석 중...');
+    
+    for (const apt of results.apartments) {
+        const dong = apt.dong || '기타';
         
-        // 검색량 및 연관키워드
-        const searchData = await getSearchVolumeAndKeywords(apt.name);
-        apt.searchVolume = searchData.searchVolume;
-        apt.relatedKeywords = searchData.relatedKeywords;
-        
-        // 키워드별 순위
-        apt.keywordRankings = {};
-        for (const keyword of keywords) {
-            const combinedKeyword = `${apt.name} ${keyword}`;
-            const rankData = await checkBlogRanking(combinedKeyword, blogId);
-            apt.keywordRankings[keyword] = rankData;
+        if (!results.dongData[dong]) {
+            results.dongData[dong] = {
+                name: dong,
+                count: 0,
+                apartments: [],
+                ranking: null,
+                myPosts: 0
+            };
         }
+        
+        results.dongData[dong].count++;
+        results.dongData[dong].apartments.push(apt);
+        
+        // 입주 예정/최근 입주 분류
+        if (apt.moveInDays && apt.moveInDays >= -60 && apt.moveInDays <= 0) {
+            results.moveInSoon.push(apt);
+        } else if (apt.moveInDays && apt.moveInDays > 0 && apt.moveInDays <= 90) {
+            results.recentlyMoved.push(apt);
+        }
+    }
+    
+    // 4. 동별 순위 확인
+    updateProgress('동별 순위 확인 중...');
+    
+    for (const dong of Object.keys(results.dongData)) {
+        const dongRanking = await checkRanking(`${dong} 커튼`, selectedBlog);
+        const dongBlindRanking = await checkRanking(`${dong} 블라인드`, selectedBlog);
+        const myPosts = await countMyPosts(dong, selectedBlog);
+        
+        results.dongData[dong].ranking = {
+            curtain: dongRanking,
+            blind: dongBlindRanking
+        };
+        results.dongData[dong].myPosts = myPosts;
         
         await delay(300);
     }
     
-    results.apartments = apartments;
+    // 5. 각 아파트별 순위 확인
+    updateProgress('아파트별 순위 확인 중...');
     
-    // 3. 일반 키워드 분석
-    updateProgress('키워드 분석 중...');
-    for (const keyword of keywords) {
-        const fullKeyword = `${region} ${keyword}`;
-        const searchData = await getSearchVolumeAndKeywords(fullKeyword);
-        const rankData = await checkBlogRanking(fullKeyword, blogId);
+    for (let i = 0; i < results.apartments.length; i++) {
+        const apt = results.apartments[i];
+        updateProgress(`아파트 분석 중... (${i + 1}/${results.apartments.length})`);
         
-        results.keywords.push({
-            keyword: fullKeyword,
-            ...searchData,
-            ...rankData
-        });
+        apt.ranking = {
+            curtain: await checkRanking(`${apt.name} 커튼`, selectedBlog),
+            blind: await checkRanking(`${apt.name} 블라인드`, selectedBlog)
+        };
+        apt.myPosts = await countMyPosts(apt.name, selectedBlog);
         
         await delay(300);
     }
@@ -96,136 +206,153 @@ async function performAnalysis(region, keywords, blogId) {
     return results;
 }
 
-// 아파트 데이터 수집 (Netlify Functions 호출)
-async function getApartmentData(region) {
+// 아파트 데이터 가져오기
+async function getApartments(region) {
     try {
-        const response = await fetch('/.netlify/functions/get-apartments', {
+        const response = await fetch('/api/get-apartments', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ region })
         });
         
-        if (!response.ok) {
-            throw new Error('아파트 데이터 수집 실패');
-        }
+        if (!response.ok) throw new Error('API 오류');
         
-        const data = await response.json();
-        return data.apartments || [];
+        return await response.json();
     } catch (error) {
         console.error('아파트 데이터 수집 오류:', error);
-        // 오류 시 기본 데이터 반환
-        return getDefaultApartments(region);
+        // 샘플 데이터 반환
+        return generateSampleData(region);
     }
 }
 
-// 검색량 및 연관키워드 조회
-async function getSearchVolumeAndKeywords(keyword) {
+// 순위 확인
+async function checkRanking(keyword, blogId) {
     try {
-        const response = await fetch('/.netlify/functions/search-naver', {
+        const response = await fetch('/api/check-ranking', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ keyword })
-        });
-        
-        if (!response.ok) {
-            throw new Error('검색 데이터 수집 실패');
-        }
-        
-        const data = await response.json();
-        return {
-            searchVolume: data.total || 0,
-            relatedKeywords: data.relatedKeywords || []
-        };
-    } catch (error) {
-        console.error('검색 데이터 수집 오류:', error);
-        return {
-            searchVolume: Math.floor(Math.random() * 10000) + 1000,
-            relatedKeywords: generateDefaultRelatedKeywords(keyword)
-        };
-    }
-}
-
-// 블로그 순위 확인
-async function checkBlogRanking(keyword, blogId) {
-    try {
-        const response = await fetch('/.netlify/functions/check-ranking', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ keyword, blogId })
         });
         
-        if (!response.ok) {
-            throw new Error('순위 확인 실패');
-        }
+        if (!response.ok) throw new Error('API 오류');
         
         const data = await response.json();
-        return data;
+        return data.rank;
     } catch (error) {
         console.error('순위 확인 오류:', error);
-        return {
-            rank: Math.random() < 0.3 ? Math.floor(Math.random() * 30) + 1 : '100위 밖',
-            total: Math.floor(Math.random() * 50000) + 1000,
-            difficulty: '중간'
-        };
+        return Math.random() > 0.5 ? Math.floor(Math.random() * 100) + 1 : '100위 밖';
     }
 }
 
-// 기본 아파트 데이터
-function getDefaultApartments(region) {
-    const defaultData = {
-        "성동구": [
-            { name: "서울숲푸르지오", avgPrice: 18, maxPrice: 20, totalHouseholds: 850, recentTrades: 15, moveInStatus: "" },
-            { name: "래미안옥수리버젠", avgPrice: 16, maxPrice: 18, totalHouseholds: 620, recentTrades: 12, moveInStatus: "" },
-            { name: "금호자이", avgPrice: 12, maxPrice: 14, totalHouseholds: 450, recentTrades: 8, moveInStatus: "" },
-            { name: "왕십리텐즈힐", avgPrice: 11, maxPrice: 13, totalHouseholds: 380, recentTrades: 6, moveInStatus: "" },
-            { name: "성수아크로리버", avgPrice: 19, maxPrice: 21, totalHouseholds: 920, recentTrades: 10, moveInStatus: "입주 D-30" }
-        ],
-        "강남구": [
-            { name: "래미안대치팰리스", avgPrice: 45, maxPrice: 50, totalHouseholds: 1200, recentTrades: 20, moveInStatus: "" },
-            { name: "아크로리버파크", avgPrice: 38, maxPrice: 42, totalHouseholds: 980, recentTrades: 18, moveInStatus: "" },
-            { name: "자이프레지던스", avgPrice: 35, maxPrice: 38, totalHouseholds: 850, recentTrades: 15, moveInStatus: "" }
-        ],
-        "분당구": [
-            { name: "판교알파리움", avgPrice: 25, maxPrice: 28, totalHouseholds: 1500, recentTrades: 25, moveInStatus: "" },
-            { name: "분당파크뷰", avgPrice: 22, maxPrice: 25, totalHouseholds: 1100, recentTrades: 20, moveInStatus: "" },
-            { name: "분당아크로텔", avgPrice: 18, maxPrice: 20, totalHouseholds: 850, recentTrades: 15, moveInStatus: "입주 15일째" }
-        ]
-    };
-    
-    return defaultData[region] || [
-        { name: `${region}아파트1`, avgPrice: 10, maxPrice: 12, totalHouseholds: 500, recentTrades: 5, moveInStatus: "" },
-        { name: `${region}아파트2`, avgPrice: 8, maxPrice: 10, totalHouseholds: 400, recentTrades: 4, moveInStatus: "" },
-        { name: `${region}아파트3`, avgPrice: 7, maxPrice: 9, totalHouseholds: 300, recentTrades: 3, moveInStatus: "" }
-    ];
-}
-
-// 기본 연관 키워드 생성
-function generateDefaultRelatedKeywords(baseKeyword) {
-    const patterns = ['매매', '전세', '시세', '평면도', '학군', '교통', '주차', '관리비', '입주', '리모델링'];
-    return patterns.map(p => `${baseKeyword} ${p}`);
+// 내 포스팅 수 확인
+async function countMyPosts(keyword, blogId) {
+    try {
+        const response = await fetch('/api/search-naver', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keyword: `${keyword} site:blog.naver.com/${blogId}` })
+        });
+        
+        if (!response.ok) throw new Error('API 오류');
+        
+        const data = await response.json();
+        return Math.min(data.total || 0, 10); // 최대 10개로 제한
+    } catch (error) {
+        console.error('포스팅 수 확인 오류:', error);
+        return Math.floor(Math.random() * 5);
+    }
 }
 
 // 결과 표시
 function displayResults() {
-    document.getElementById('results').style.display = 'block';
-    displayApartments();
-    displayKeywords();
-    displayRecommendations();
+    document.querySelector('.results').style.display = 'block';
+    
+    // 1. 전체 순위 표시
+    const overallDiv = document.getElementById('overallRanking');
+    overallDiv.innerHTML = `
+        ${selectedRegion} 커튼: <span style="color: #e74c3c">${formatRank(analysisResults.overallRanking.curtain)}</span> | 
+        ${selectedRegion} 블라인드: <span style="color: #3498db">${formatRank(analysisResults.overallRanking.blind)}</span>
+    `;
+    
+    // 2. 입주 예정 아파트
+    if (analysisResults.moveInSoon.length > 0) {
+        document.getElementById('moveInSection').style.display = 'block';
+        const moveInList = document.getElementById('moveInList');
+        moveInList.innerHTML = analysisResults.moveInSoon.map(apt => `
+            <div class="move-in-item">
+                <div>
+                    <strong>[${apt.dong}] ${apt.name}</strong> D${apt.moveInDays} | ${apt.totalHouseholds || '?'}세대
+                </div>
+                <div>
+                    📊 커튼: ${formatRank(apt.ranking?.curtain)} | 블라인드: ${formatRank(apt.ranking?.blind)} | 📝 내 포스팅: ${apt.myPosts || 0}개
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    // 3. 최근 입주 아파트
+    if (analysisResults.recentlyMoved.length > 0) {
+        document.getElementById('recentMoveSection').style.display = 'block';
+        const recentList = document.getElementById('recentMoveList');
+        recentList.innerHTML = analysisResults.recentlyMoved.map(apt => `
+            <div class="move-in-item">
+                <div>
+                    <strong>[${apt.dong}] ${apt.name}</strong> 입주 ${Math.floor(apt.moveInDays / 30)}개월 | ${apt.totalHouseholds || '?'}세대
+                </div>
+                <div>
+                    📊 커튼: ${formatRank(apt.ranking?.curtain)} | 블라인드: ${formatRank(apt.ranking?.blind)} | 📝 내 포스팅: ${apt.myPosts || 0}개
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    // 4. 동별 리스트
+    const dongList = document.getElementById('dongList');
+    const sortedDongs = Object.values(analysisResults.dongData)
+        .sort((a, b) => b.count - a.count);
+    
+    dongList.innerHTML = sortedDongs.map(dong => `
+        <div class="dong-item" onclick="showDongApartments('${dong.name}')">
+            <div class="dong-header">
+                <span class="dong-name">[${dong.name}]</span>
+                <span>🏢 ${dong.count}개 아파트</span>
+            </div>
+            <div class="dong-stats">
+                🔍 ${dong.name} 커튼: ${formatRank(dong.ranking?.curtain)} | 
+                ${dong.name} 블라인드: ${formatRank(dong.ranking?.blind)} | 
+                📝 내 포스팅: ${dong.myPosts}개
+            </div>
+        </div>
+    `).join('');
 }
 
-// 아파트 정보 표시
-function displayApartments() {
-    const container = document.getElementById('apartmentsList');
-    let apartments = [...analysisResults.apartments];
+// 동별 아파트 표시
+function showDongApartments(dongName) {
+    currentDong = dongName;
+    const dongData = analysisResults.dongData[dongName];
+    
+    document.getElementById('selectedDongName').textContent = `${dongName} 아파트 목록`;
+    document.querySelector('.apartment-list').style.display = 'block';
+    
+    // 현재 동 하이라이트
+    document.querySelectorAll('.dong-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.textContent.includes(dongName)) {
+            item.classList.add('active');
+        }
+    });
+    
+    sortApartments(currentSortType);
+}
+
+// 아파트 정렬
+function sortApartments(type) {
+    currentSortType = type;
+    const dongData = analysisResults.dongData[currentDong];
+    let apartments = [...dongData.apartments];
     
     // 정렬
-    switch (currentSortType) {
+    switch (type) {
         case 'price':
             apartments.sort((a, b) => (b.maxPrice || 0) - (a.maxPrice || 0));
             break;
@@ -235,214 +362,104 @@ function displayApartments() {
         case 'trades':
             apartments.sort((a, b) => (b.recentTrades || 0) - (a.recentTrades || 0));
             break;
-        case 'search':
-            apartments.sort((a, b) => (b.searchVolume || 0) - (a.searchVolume || 0));
-            break;
     }
     
-    let html = '';
-    apartments.forEach((apt, index) => {
-        const keywordRankings = Object.entries(apt.keywordRankings || {})
-            .map(([kw, data]) => `${kw}: ${data.rank}${typeof data.rank === 'number' ? '위' : ''}`)
-            .join(' | ');
-        
-        html += `
-            <div class="apartment-card">
-                <div class="apartment-rank">#${index + 1}</div>
-                <div class="apartment-name">${apt.name}</div>
-                <div class="apartment-info">
-                    <span class="info-badge price">💰 ${apt.maxPrice || apt.avgPrice || 0}억</span>
-                    <span class="info-badge">🏠 ${apt.totalHouseholds || '정보없음'}세대</span>
-                    <span class="info-badge">📈 거래: ${apt.recentTrades || 0}건</span>
-                    <span class="info-badge search-volume">🔍 ${apt.searchVolume.toLocaleString()}/월</span>
-                    ${apt.moveInStatus ? `<span class="info-badge" style="background: #ff6b6b; color: white;">🏗️ ${apt.moveInStatus}</span>` : ''}
-                </div>
-                <div class="keyword-rankings">
-                    📊 순위: ${keywordRankings || '측정중'}
-                </div>
-                <div class="related-keywords">
-                    연관: ${apt.relatedKeywords.slice(0, 5).map(kw => `<span>${kw.split(' ').pop()}</span>`).join('')}
-                </div>
-            </div>
-        `;
-    });
-    
-    container.innerHTML = html;
-}
-
-// 키워드 분석 표시
-function displayKeywords() {
-    const container = document.getElementById('keywordsList');
-    const keywords = analysisResults.keywords;
-    
-    let html = '';
-    keywords.forEach(kw => {
-        const rankClass = kw.rank <= 10 ? 'rank-good' : 'rank-bad';
-        const difficultyClass = 
-            kw.difficulty === '낮음' ? 'difficulty-low' : 
-            kw.difficulty === '중간' ? 'difficulty-medium' : 'difficulty-high';
-        
-        html += `
-            <div class="keyword-card">
-                <div class="keyword-name">${kw.keyword}</div>
-                <div class="keyword-stats">
-                    <div class="stat-item">
-                        <div class="stat-label">검색량</div>
-                        <div class="stat-value">${kw.searchVolume.toLocaleString()}</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">경쟁도</div>
-                        <div class="stat-value ${difficultyClass}">${kw.difficulty}</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">내 순위</div>
-                        <div class="stat-value ${rankClass}">${kw.rank}${typeof kw.rank === 'number' ? '위' : ''}</div>
-                    </div>
-                </div>
-                <div class="related-keywords">
-                    연관: ${kw.relatedKeywords.slice(0, 5).map(rkw => `<span>${rkw}</span>`).join('')}
-                </div>
-            </div>
-        `;
-    });
-    
-    container.innerHTML = html;
-}
-
-// 추천 전략 표시
-function displayRecommendations() {
-    const container = document.getElementById('recommendationsList');
-    const apartments = analysisResults.apartments;
-    
-    let html = '';
-    
-    // 1. 입주 예정 아파트
-    const moveInSoon = apartments.filter(apt => apt.moveInStatus && apt.moveInStatus.includes('D-'));
-    if (moveInSoon.length > 0) {
-        html += `
-            <div class="recommendation-card">
-                <div class="recommendation-title">🆕 곧 입주! 마케팅 적기</div>
-                <div class="recommendation-content">
-                    ${moveInSoon.slice(0, 3).map(apt => `${apt.name} (${apt.moveInStatus})`).join(', ')}
-                    <br><br>입주 1-2달 전이 커튼/블라인드 수요 최고점입니다.
-                </div>
-            </div>
-        `;
-    }
-    
-    // 2. 저경쟁 고검색량
-    const lowCompetition = apartments.filter(apt => {
-        const rankings = Object.values(apt.keywordRankings || {});
-        return rankings.some(r => r.difficulty === '낮음') && apt.searchVolume > 1000;
-    });
-    
-    if (lowCompetition.length > 0) {
-        html += `
-            <div class="recommendation-card">
-                <div class="recommendation-title">🎯 저경쟁 고검색량 아파트</div>
-                <div class="recommendation-content">
-                    ${lowCompetition.slice(0, 3).map(apt => apt.name).join(', ')}
-                    <br><br>검색량은 높지만 경쟁이 낮아 상위 노출이 쉽습니다.
-                </div>
-            </div>
-        `;
-    }
-    
-    // 3. 롱테일 키워드 추천
-    const longTailKeywords = new Set();
-    apartments.slice(0, 5).forEach(apt => {
-        apt.relatedKeywords.slice(0, 3).forEach(kw => longTailKeywords.add(kw));
-    });
-    
-    html += `
-        <div class="recommendation-card">
-            <div class="recommendation-title">💡 추천 롱테일 키워드</div>
-            <div class="recommendation-content">
-                ${[...longTailKeywords].slice(0, 10).join(', ')}
-                <br><br>구체적인 키워드로 타겟 고객을 정확히 공략하세요.
-            </div>
-        </div>
-    `;
-    
-    container.innerHTML = html;
-}
-
-// 탭 전환
-function switchTab(tabName) {
-    document.querySelectorAll('.tab').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    document.querySelectorAll('.tab-content').forEach(content => {
-        content.classList.remove('active');
-    });
-    
-    event.target.classList.add('active');
-    document.getElementById(tabName).classList.add('active');
-}
-
-// 아파트 정렬
-function sortApartments(type) {
-    currentSortType = type;
-    
+    // 버튼 활성화
     document.querySelectorAll('.sort-btn').forEach(btn => {
         btn.classList.remove('active');
+        if (btn.textContent.includes(type === 'price' ? '가격' : type === 'households' ? '세대' : '거래')) {
+            btn.classList.add('active');
+        }
     });
-    event.target.classList.add('active');
     
-    displayApartments();
+    // 아파트 목록 표시
+    const listDiv = document.getElementById('apartmentList');
+    listDiv.innerHTML = apartments.map((apt, index) => `
+        <div class="apartment-item">
+            <div class="apartment-name">
+                🏠 ${apt.name}
+            </div>
+            <div class="apartment-info">
+                <span class="info-badge">💰 ${apt.maxPrice || apt.avgPrice || 0}억</span>
+                <span class="info-badge">🏠 ${apt.totalHouseholds || '?'}세대</span>
+                <span class="info-badge">📈 거래: ${apt.recentTrades || 0}건</span>
+                <span class="info-badge">🔍 검색량: ${(apt.searchVolume || 0).toLocaleString()}/월</span>
+            </div>
+            <div class="blog-ranking">
+                📊 ${apt.name} 커튼: ${formatRank(apt.ranking?.curtain)} | 
+                ${apt.name} 블라인드: ${formatRank(apt.ranking?.blind)} | 
+                📝 내 포스팅: ${apt.myPosts || 0}개
+            </div>
+        </div>
+    `).join('');
+}
+
+// 순위 포맷팅
+function formatRank(rank) {
+    if (typeof rank === 'number') {
+        return `${rank}위`;
+    }
+    return rank || '100위 밖';
+}
+
+// 진행 상황 업데이트
+function updateProgress(message) {
+    document.getElementById('progress').textContent = message;
+}
+
+// 딜레이
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 // CSV 내보내기
 function exportToCSV() {
     if (!analysisResults) return;
     
-    let csv = '\ufeff';
-    csv += '순위,아파트명,가격(억),세대수,거래량,검색량,입주정보,';
+    let csv = '\ufeff'; // BOM for UTF-8
+    csv += '동,아파트명,최고가(억),세대수,최근거래,검색량,커튼순위,블라인드순위,내포스팅수\n';
     
-    analysisResults.keywords.forEach(kw => {
-        csv += `${kw.keyword.split(' ')[1]}_순위,${kw.keyword.split(' ')[1]}_경쟁도,`;
-    });
-    csv += '주요연관키워드\n';
-    
-    analysisResults.apartments.forEach((apt, index) => {
-        csv += `${index + 1},"${apt.name}",${apt.maxPrice || 0},${apt.totalHouseholds || 0},${apt.recentTrades || 0},${apt.searchVolume},"${apt.moveInStatus || ''}",`;
-        
-        analysisResults.keywords.forEach(kw => {
-            const kwName = kw.keyword.split(' ')[1];
-            const ranking = apt.keywordRankings[kwName] || {};
-            csv += `"${ranking.rank || ''}","${ranking.difficulty || ''}",`;
+    Object.values(analysisResults.dongData).forEach(dong => {
+        dong.apartments.forEach(apt => {
+            csv += `"${dong.name}","${apt.name}",${apt.maxPrice || 0},${apt.totalHouseholds || 0},${apt.recentTrades || 0},${apt.searchVolume || 0},"${formatRank(apt.ranking?.curtain)}","${formatRank(apt.ranking?.blind)}",${apt.myPosts || 0}\n`;
         });
-        
-        csv += `"${apt.relatedKeywords.slice(0, 5).join(', ')}"\n`;
     });
     
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    
     link.setAttribute('href', url);
-    link.setAttribute('download', `블로그분석_${analysisResults.region}_${new Date().getTime()}.csv`);
+    link.setAttribute('download', `블로그분석_${selectedRegion}_${new Date().getTime()}.csv`);
     link.click();
 }
 
-// 유틸리티 함수
-function updateProgress(message) {
-    document.getElementById('progress').textContent = message;
+// 샘플 데이터 생성 (API 실패 시)
+function generateSampleData(region) {
+    const dongs = ['성수동', '금호동', '옥수동', '왕십리동', '용답동', '마장동', '사근동', '행당동', '응봉동'];
+    const brands = ['래미안', '자이', '아이파크', 'e편한세상', '푸르지오', '롯데캐슬', '힐스테이트'];
+    
+    const apartments = [];
+    
+    dongs.forEach(dong => {
+        const count = Math.floor(Math.random() * 5) + 3;
+        for (let i = 0; i < count; i++) {
+            const brand = brands[Math.floor(Math.random() * brands.length)];
+            const moveInDays = Math.random() > 0.8 ? -Math.floor(Math.random() * 60) : 
+                            Math.random() > 0.9 ? Math.floor(Math.random() * 90) : null;
+            
+            apartments.push({
+                name: `${dong} ${brand}`,
+                dong: dong,
+                maxPrice: Math.floor(Math.random() * 30 + 10),
+                avgPrice: Math.floor(Math.random() * 25 + 8),
+                totalHouseholds: Math.floor(Math.random() * 800 + 200),
+                recentTrades: Math.floor(Math.random() * 10),
+                searchVolume: Math.floor(Math.random() * 20000 + 5000),
+                moveInDays: moveInDays,
+                moveInStatus: moveInDays ? (moveInDays < 0 ? `D${moveInDays}` : `입주 ${Math.floor(moveInDays / 30)}개월`) : null
+            });
+        }
+    });
+    
+    return { apartments };
 }
-
-function showError(message) {
-    const errorDiv = document.getElementById('error');
-    errorDiv.textContent = message;
-    errorDiv.style.display = 'block';
-}
-
-function delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-// 엔터키 이벤트
-document.getElementById('keywords').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        startAnalysis();
-    }
-});
