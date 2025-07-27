@@ -398,8 +398,10 @@ function sortApartments(type) {
     
     // 아파트 목록 표시
     const listDiv = document.getElementById('apartmentList');
-    listDiv.innerHTML = apartments.map((apt, index) => `
-        <div class="apartment-item" onclick="searchApartment('${apt.name}', '${apt.dong}')">
+    listDiv.innerHTML = apartments.map((apt, index) => {
+        // 따옴표 문제 해결을 위해 데이터 속성 사용
+        return `
+        <div class="apartment-item" data-name="${apt.name}" data-dong="${apt.dong}" onclick="searchApartment(this)">
             <div class="apartment-name">
                 🏠 ${apt.name}
             </div>
@@ -414,7 +416,8 @@ function sortApartments(type) {
                 📝 내 포스팅: ${apt.myPosts || 0}개
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 // 순위 포맷팅
@@ -457,7 +460,9 @@ function exportToCSV() {
 }
 
 // 아파트 검색 (네이버 부동산)
-function searchApartment(aptName, dong) {
+function searchApartment(element) {
+    const aptName = element.getAttribute('data-name');
+    const dong = element.getAttribute('data-dong');
     const searchQuery = encodeURIComponent(`${dong} ${aptName}`);
     const naverUrl = `https://m.land.naver.com/search/result/${searchQuery}`;
     window.open(naverUrl, '_blank');
