@@ -194,29 +194,6 @@ exports.handler = async (event, context) => {
             }
         }
         
-        // 네이버 검색으로 보완
-        if (Object.keys(apartments).length < 20) {
-            const searchKeywords = [
-                `${region} 아파트`,
-                `${region} 아파트 시세`,
-                `${region} 신축 아파트`,
-                `${region} 래미안`,
-                `${region} 자이`,
-                `${region} 아이파크`,
-                `${region} 푸르지오`,
-                `${region} 힐스테이트`
-            ];
-            
-            for (const keyword of searchKeywords) {
-                try {
-                    // 네이버 검색은 search-naver 함수 활용
-                    console.log(`검색: ${keyword}`);
-                } catch (error) {
-                    console.error('네이버 검색 오류:', error);
-                }
-            }
-        }
-        
         // 데이터 정리
         const apartmentList = Object.values(apartments).map(apt => {
             if (apt.prices.length > 0) {
@@ -234,18 +211,6 @@ exports.handler = async (event, context) => {
             oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
             apt.recentTrades = apt.trades.filter(t => t.date >= oneWeekAgo).length;
             apt.totalTrades = apt.trades.length;
-            
-            // 검색량 (임시)
-            apt.searchVolume = Math.floor(Math.random() * 20000 + 5000);
-            
-            // 입주 정보 (임시)
-            if (Math.random() > 0.9) {
-                apt.moveInDays = -Math.floor(Math.random() * 60);
-                apt.moveInStatus = `D${apt.moveInDays}`;
-            } else if (Math.random() > 0.95) {
-                apt.moveInDays = Math.floor(Math.random() * 90);
-                apt.moveInStatus = `입주 ${Math.floor(apt.moveInDays / 30)}개월`;
-            }
             
             return apt;
         });
