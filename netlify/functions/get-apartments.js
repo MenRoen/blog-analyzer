@@ -99,16 +99,16 @@ exports.handler = async (event, context) => {
                 const yearMonth = targetDate.getFullYear() + String(targetDate.getMonth() + 1).padStart(2, '0');
                 
                 const url = `https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade`;
-                const params = new URLSearchParams({
-                    serviceKey: decodeURIComponent(MOLIT_API_KEY), // 디코딩해서 사용
-                    pageNo: '1',
-                    numOfRows: '500', // 최대한 많이 가져오기
-                    LAWD_CD: regionCode,
-                    DEAL_YMD: yearMonth
-                });
+                
+                // URL 파라미터를 직접 구성
+                const queryString = `serviceKey=${MOLIT_API_KEY}&pageNo=1&numOfRows=500&LAWD_CD=${regionCode}&DEAL_YMD=${yearMonth}`;
+                const fullUrl = `${url}?${queryString}`;
+                
+                console.log(`API 호출 URL: ${url}`);
+                console.log(`파라미터: LAWD_CD=${regionCode}, DEAL_YMD=${yearMonth}`);
                 
                 try {
-                    const response = await fetch(`${url}?${params}`);
+                    const response = await fetch(fullUrl);
                     console.log(`API 응답 상태: ${response.status}`);
                     
                     const text = await response.text();
@@ -136,14 +136,27 @@ exports.handler = async (event, context) => {
                     const items = text.match(/<item>[\s\S]*?<\/item>/g) || [];
                     console.log(`파싱된 아이템 수: ${items.length}`);
                     
+                    // 첫 번째 아이템 샘플 출력 (디버깅용)
+                    if (items.length > 0) {
+                        console.log('첫 번째 아이템 샘플:', items[0].substring(0, 200) + '...');
+                    }
+                    
+                    // 응답에 실제로 item이 없으면 다른 형식 확인
+                    if (items.length === 0 && text.includes('아파트')) {
+                        console.log('XML 구조 확인:', text.substring(0, 500));
+                    }
+                    
                     items.forEach(itemXml => {
                         const getTagValue = (tag) => {
                             const match = itemXml.match(new RegExp(`<${tag}>([^<]*)<\/${tag}>`));
                             return match ? match[1].trim() : '';
                         };
                         
-                        const aptName = getTagValue('아파트');
-                        const dong = getTagValue('법정동');
+                        // 다양한 태그명 시도
+                        const aptName = getTagValue('아파트') || getTagValue('아파트명') || getTagValue('단지명');
+                        const dong = getTagValue('법정동') || getTagValue('동') || getTagValue('법정동명');
+                        
+                        console.log(`아파트명: ${aptName}, 동: ${dong}`); // 디버깅용
                         
                         if (aptName && dong) {
                             const key = `${dong}_${aptName}`;
