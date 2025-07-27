@@ -399,7 +399,7 @@ function sortApartments(type) {
     // 아파트 목록 표시
     const listDiv = document.getElementById('apartmentList');
     listDiv.innerHTML = apartments.map((apt, index) => `
-        <div class="apartment-item">
+        <div class="apartment-item" onclick="searchApartment('${apt.name}', '${apt.dong}')">
             <div class="apartment-name">
                 🏠 ${apt.name}
             </div>
@@ -454,4 +454,11 @@ function exportToCSV() {
     link.setAttribute('href', url);
     link.setAttribute('download', `블로그분석_${selectedRegion}_${new Date().getTime()}.csv`);
     link.click();
+}
+
+// 아파트 검색 (네이버 부동산)
+function searchApartment(aptName, dong) {
+    const searchQuery = encodeURIComponent(`${dong} ${aptName}`);
+    const naverUrl = `https://m.land.naver.com/search/result/${searchQuery}`;
+    window.open(naverUrl, '_blank');
 }
