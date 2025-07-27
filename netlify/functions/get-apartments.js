@@ -126,7 +126,7 @@ exports.handler = async (event, context) => {
                         console.log(`API 결과 코드: ${resultCode ? resultCode[1] : 'N/A'}`);
                         console.log(`API 결과 메시지: ${resultMsg ? resultMsg[1] : 'N/A'}`);
                         
-                        if (resultCode && resultCode[1] !== '00') {
+                        if (resultCode && resultCode[1] !== '00' && resultCode[1] !== '000') {
                             console.error(`API 오류: ${resultMsg ? resultMsg[1] : '알 수 없는 오류'}`);
                             continue;
                         }
